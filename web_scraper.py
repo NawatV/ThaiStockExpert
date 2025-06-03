@@ -11,8 +11,8 @@ import pyperclip
 # Use pathlib to work with paths (optional)
 from pathlib import Path
 
-#As of 2/June/2025 
-# ============= Scrape data | Click ele | Search for stock [SET(eng)] =============================
+#As of 3/June/2025 
+# ============= Scrape data | Click ele | Search for stock | Scrape the searched data | [SET(eng)] =============================
 #               Full XPATH 
 
 # Set up the path to chromedriver
@@ -25,7 +25,7 @@ driver = webdriver.Chrome(service=service)
 # Open a website: SET (eng)
 driver.get("https://www.set.or.th/en/home")
 # Wait
-time.sleep(3)
+time.sleep(4)
 
 # Function
 def clrPopup():
@@ -39,8 +39,9 @@ def clrPopup():
 
 # Long-term vars
 li1_data = []   # Storing [idx, last]
-li2_data = []   # Storing 'Price Info'
-li3_data = []   # Storing 'Highlights'
+li2_data = []   # Storing 'Price Info (Day Range)'
+li3_data = []   # Storing 'Price Info (52-Week Range)'
+li4_data = []   # Storing 'Highlights'
 
 
 # Pre-find an element
@@ -50,10 +51,10 @@ clrPopup()
 ## Accept all the cookies [Click | Full XPATH + By.CLASS & TAG_NAME]
 try:
     #--- Full XPATH ---
-    e_x = None
-    e_x = driver.find_element(By.XPATH, "/html/body/div[1]/div/div/div[7]/div/div/div[2]/button")
-    if e_x is not None:
-        e_x.click()
+    e_acc = None
+    e_acc = driver.find_element(By.XPATH, "/html/body/div[1]/div/div/div[7]/div/div/div[2]/button")
+    if e_acc is not None:
+        e_acc.click()
 
     #--- By.CLASS & TAG_NAME ---
     # e_acc_block = driver.find_element(By.CLASS_NAME, "pdpa")
@@ -94,7 +95,7 @@ try:
     e_srh = driver.find_element(By.XPATH, e_srh_path) #X if e_srh is not None:
     time.sleep(1)
     print("Type the stock name:", end=" ")
-    n = input()
+    n = input() # Already case-insensitive on SET
 
     #--- Clear the pop-up if it exists [Click] ---
     clrPopup()
@@ -109,7 +110,7 @@ try:
     e_srhBtn = driver.find_element(By.XPATH, div_path)
     time.sleep(1)
     driver.execute_script("arguments[0].click();", e_srhBtn)
-    time.sleep(3)
+    time.sleep(4)
     # Doesn't work
     # e_srh.clear() | e_srh.send_keys("Amata") | e_srh.send_keys(Keys.RETURN / Keys.ENTER) | e_srhBtn.click() | ActionChains(driver)       
 except:
@@ -118,6 +119,54 @@ except:
 # At the searched page
 ## Clear the pop-up if it exists [Click]
 clrPopup()
+
+# Find an element
+e_pinfo_all = driver.find_element(By.ID, "stock-quote-tab-pane-1") #To be used next
+try:
+    #e_pinfo = driver.find_element(By.XPATH, e_pinfo_path)
+    #e_pinfo_all = driver.find_element(By.ID, "stock-quote-tab-pane-1") #To be used next
+    e_pinfo_cont = e_pinfo_all.find_element(By.CSS_SELECTOR, "[class*='price-info-stock']") # X By.CLASS_NAME
+    e_pinfo_detail = e_pinfo_cont.find_element(By.CSS_SELECTOR, "[class*='cost-detail']")
+    e_pinfo_detailBxs = e_pinfo_detail.find_elements(By.CSS_SELECTOR, "[class*='price-info-stock-detail-box']")
+    for bx in e_pinfo_detailBxs:
+        itms = bx.find_elements(By.CSS_SELECTOR, "[class*='item-list-details']") #= 6 items
+        #--- Data Range ---
+        data_day = itms[0]
+        label_day = data_day.find_element(By.TAG_NAME, "label")
+        value_day = data_day.find_element(By.TAG_NAME, "span")
+        li2_data.append([label_day.text, value_day.text])
+        #--- 52-Week Range ---
+        data_52 = itms[1]
+        label_52 = data_52.find_element(By.TAG_NAME, "label")
+        value_52 = data_52.find_element(By.TAG_NAME, "span")
+        li3_data.append([label_52.text, value_52.text])
+except:
+    print("Price Info failed")
+
+# Print li2_data & li3_data
+print(li2_data)
+print(li3_data)
+
+
+
+# Find an element <<<<<<<< Highlights & Make find_element more flex. (cssselector, etc.)
+#                 <<<<<<<< Create more funcs.
+#try:
+    # Doesn't work
+    #X e_hl_impL_main_path = "/html/body/div[1]/div/div/div[2]/div[2]/div[2]/div/div/div[2]/div/div/div[1]"
+    #X driver.execute_script("arguments[0].scrollIntoView(true);", e_hl_impL_main)
+    #X e_hl_impLs = driver.find_elements(By.CSS_SELECTOR, "[class*='price-important-stock-left']")        
+#except:
+    #print("Highlights failed")
+
+# Print li4_data
+print(li4_data)
+
+#Wait the popup
+time.sleep(5)
+clrPopup()
+
+
 
 # Close the browser
 driver.quit()
