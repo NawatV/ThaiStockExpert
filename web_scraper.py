@@ -1,3 +1,8 @@
+#PREREQUISITE: - Download a Chrome WebDriver compatible with its version on
+#                   https://developer.chrome.com/docs/chromedriver/downloads (if 'warning' > 'Chrome for Testing avai.dashboard')
+#              - Extract all > put chromedriver.exe at your path > assign the path to 'driver_path' below  
+#                   //Check your Chrome's version on chrome://settings/help
+
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -11,7 +16,7 @@ import pyperclip
 # Use pathlib to work with paths (optional)
 from pathlib import Path
 
-#As of 3/June/2025 
+#As of 5/June/2025 
 # ============= Scrape data | Click ele | Search for stock | Scrape the searched data | [SET(eng)] =============================
 #               Full XPATH 
 
@@ -90,9 +95,9 @@ print(li1_data)
 # Find & search in a search box [pyperclip & js] [Must use]
 try:
     #--- Recognize an input ---
-    e_srh_path = "/html/body/div[1]/div/div/header/div[1]/div[1]/div/div[3]/div"
-    e_srh = None
-    e_srh = driver.find_element(By.XPATH, e_srh_path) #X if e_srh is not None:
+    e_search_path = "/html/body/div[1]/div/div/header/div[1]/div[1]/div/div[3]/div"
+    e_search = None
+    e_search = driver.find_element(By.XPATH, e_search_path) #X if e_search is not None:
     time.sleep(1)
     print("Type the stock name:", end=" ")
     n = input() # Already case-insensitive on SET
@@ -102,17 +107,18 @@ try:
     
     #--- pyperclip ctrl+c +v & click the search box ---
     pyperclip.copy(n) 
-    e_srh.click()
+    e_search.click()
     ActionChains(driver).key_down(Keys.CONTROL).send_keys("v").key_up(Keys.CONTROL).perform()
 
     #--- js to click search ---
     div_path = "/html/body/div[1]/div/div/header/div[1]/div[1]/div[1]/div[3]/div/div[4]" #X /svg
-    e_srhBtn = driver.find_element(By.XPATH, div_path)
+    e_searchBtn = driver.find_element(By.XPATH, div_path)
     time.sleep(1)
-    driver.execute_script("arguments[0].click();", e_srhBtn)
+    driver.execute_script("arguments[0].click();", e_searchBtn)
     time.sleep(4)
     # Doesn't work
-    # e_srh.clear() | e_srh.send_keys("Amata") | e_srh.send_keys(Keys.RETURN / Keys.ENTER) | e_srhBtn.click() | ActionChains(driver)       
+    # e_search.clear() | e_search.send_keys("Amata")
+    #   | e_search.send_keys(Keys.RETURN / Keys.ENTER) | e_searchBtn.click() | ActionChains(driver)       
 except:
     print("Something wrong in the searching time")
 
@@ -150,7 +156,6 @@ print(li3_data)
 
 
 # Find an element <<<<<<<< Highlights & Make find_element more flex. (cssselector, etc.)
-#                 <<<<<<<< Create more funcs.
 #try:
     # Doesn't work
     #X e_hl_impL_main_path = "/html/body/div[1]/div/div/div[2]/div[2]/div[2]/div/div/div[2]/div/div/div[1]"
