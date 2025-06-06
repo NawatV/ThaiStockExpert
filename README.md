@@ -1,9 +1,9 @@
 # ThaiStockExpert
 
-Python
+# Python
 --- PREREQUISITE: - Set up your Python IDE, Environment Variables, & Python libraries (such as CMD > pip install <package-name>).  
 
-# all the files
+# All the Files
 --- PREREQUISITE: - Check all the paths (### PATH !!!) in the source code & make them valid & compatible with your environment before running the project.  
 
 # stockRetrieve.py
