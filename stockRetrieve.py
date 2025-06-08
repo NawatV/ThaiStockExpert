@@ -1,6 +1,3 @@
-#PREREQUISITE: - Register on https://developer.settrade.com/open-api/
-#              - Added your own 'app_id' & 'app_secret' below 
-
 # ------------ SETTRADE_V2 ------------
 import settrade_v2
 from settrade_v2 import Investor
@@ -9,30 +6,33 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
+import showCandleStick as showCandleStick
+
 # ========= Get & store stock's history data to the assigned csv -> Ready to visualize with indicators |
-#           Unavai. to 'Start-End' for m(min)
-#           Loop | X(tmp): try-except | +Up/Low Bangs +RSI =================
+#           Unavai. to 'Start-End' for m(min) Loop | X(tmp): try-except | +Up/Low Bands +RSI |
+#           Call func. | Handle input errors (all nec.) | Data struc. changed | Done lower/upper
+#            =================
 
 # #-#-#-#-# Getting & Storing Part #-#-#-#-# 
-# Initialize the Investor object with your credentials
+# Initialize an Investor object with your credentials
 investor = Investor(app_id="", app_secret="",
                     broker_id="SANDBOX", app_code="SANDBOX", is_auto_queue = False)
 # Access the market data
 market = investor.MarketData()
 
 # Functions
-# --- Upper Band = SMA + k*std (k=2)
+# --- Upper Band = SMA + k*std (k=2) ---
 def getUpperBandValue(sma, stdS):
     std = np.std(stdS, ddof=1) #Sample std deviation
     up = sma + 2*std
     return up
-# --- Lower Band = SMA - k*std (k=2)
+# --- Lower Band = SMA - k*std (k=2) ---
 def getLowerBandValue(sma, stdS):
     std = np.std(stdS, ddof=1) #Sample std deviation
     down = sma - (2*std)
     return down  
 
-# --- RSI =100−(100/(1+RS))
+# --- RSI =100−(100/(1+RS)) ---
 def getRsi(li_close, numP, numPeriod): #if 14-day RSI -> li,15,14
     gains = 0
     losses = 0
@@ -45,8 +45,12 @@ def getRsi(li_close, numP, numPeriod): #if 14-day RSI -> li,15,14
                 losses += abs(diff)
     avgGain = gains / numPeriod     #X: avg_gain = gain.rolling(window= numPeriod).mean()
     avgLoss = losses / numPeriod
-    rs = avgGain / avgLoss
-    rsi = 100 - (100 / (1 + rs))
+    #--- Case avgLoss = 0 ---
+    if avgLoss == 0:
+        return ""
+    else:
+        rs = avgGain / avgLoss
+        rsi = 100 - (100 / (1 + rs))
     return rsi
 
 
@@ -60,35 +64,49 @@ while isAgain == True :
     print("Beware of error due to improper input!")
     print("Stock Name (Case-Insen):", end=" ")
     sym = input()
+    sym = sym.lower()
+    
     print("Interval -1d(daily), 1w(weekly), 1M(monthly),")  # Internal's description
     print("1,3,5,10,30,60,120,240m (per..minute(s)): ", end="") # Unavai. to 'Start-End'
     itv = input()
-    print("Candle Amount:", end=" ")
-    lim = input()
-
-    if itv not in ["1m","3m","5m","10m","30m","60m","120m","240m"]:
+    if itv in ["1d","1w","1M"]:
+        #--- Get lim after 'if itv' ---
+        print("Candle Amount (<=1000):", end=" ")
+        lim = input()
+        try:
+            if int(lim) > 1000 or int(lim) < 1:
+                print("Input out of 1-1000! Start again.")
+                continue #Go back to while #X: break
+        except:
+            print("Invalid input! Start again.")
+            continue
+        #------------------------------
         print("Start-End Date? (y or n): ", end="")
         isDate = input()
         if isDate == "y":
             #--- Start-End Date ---
             print("Start Date (DD/MM/YYYY): ", end="")
             sd = input()
-            sdS = sd.split("/")
-            y = sdS[2]
-            m = sdS[1]
-            d = sdS[0]
-            startD = f"{y}-{m}-{d}T00:00"
-            print("End Date (DD/MM/YYYY): ", end="")
-            ed = input()
-            edS = ed.split("/")
-            y = edS[2]
-            m = edS[1]
-            d = edS[0]
-            endD = f"{y}-{m}-{d}T23:59"
+            try:
+                sdS = sd.split("/")
+                y = sdS[2]
+                m = sdS[1]
+                d = sdS[0]
+                startD = f"{y}-{m}-{d}T00:00"
+                print("End Date (DD/MM/YYYY): ", end="")
+                ed = input()
+                edS = ed.split("/")
+                y = edS[2]
+                m = edS[1]
+                d = edS[0]
+                endD = f"{y}-{m}-{d}T23:59"
+            except:
+                print("Invalid input! Start again.")
+                continue #Go back to while #X: break
             #----------------------
             res = market.get_candlestick(
             symbol=sym,
-            interval=itv,   #1m, 3m, 5m, 10m, 30m, 60m, 120m, 240m, 1d, 1w, 1M
+            interval=itv,   #1m, 3m, 5m, 10m, 15m, 30m, 60m, 120m, 240m, 1d, 1w, 1M
             limit=lim,      #Candle amount
             start= startD,  #Opt.- "YYYY-mm-ddTHH:MM"
             end= endD,      #Opt.- "YYYY-mm-ddTHH:MM"
@@ -96,15 +114,27 @@ while isAgain == True :
                                 #If yes -> get the candles in that period
             normalized=True
             )
-        elif isDate == "n":
+        elif isDate == "n":            
             res = market.get_candlestick(symbol=sym, interval=itv, limit=lim, normalized=True)
         else:
-            print("Invalid input!")
-            break
-    else:
+            print("Invalid input! Start again.")
+            continue
+    elif itv in ["1m","3m","5m","10m","30m","60m","120m","240m"]:
+        #--- Get lim after 'if itv' ---
+        print("Candle Amount (<=1000):", end=" ")
+        lim = input()
+        try:
+            if int(lim) > 1000 or int(lim) < 1:
+                print("Input out of 1-1000! Start again.")
+                continue
+        except:
+            print("Invalid input! Start again.")
+            continue
+        #------------------------------
         res = market.get_candlestick(symbol=sym, interval=itv, limit=lim, normalized=True)    
-    print("SMA,EMA,Upper&Lower Band - NO.of Periods: ", end="")
-    numPeriod = int(input())
+    else:
+        print("Invalid input! Start again.")
+        continue  
 
     # Store in list
     li_lastSequence = res["lastSequence"]
@@ -113,15 +143,22 @@ while isAgain == True :
     li_high = res["high"]
     li_low = res["low"]
     li_close = res["close"]
-
-#>>>>>>> customize pos below & next file later
-
-    li_sma = []
-    li_ema = []
     li_up = []
     li_down = []
+    li_sma = []
+    li_ema = []
     li_rsi = []
-    #--- SMA = (Sum of (closing) prices over a period) / (No.of time periods)
+
+    # Creates indicators
+    while True:
+        try:
+            print("SMA,EMA,Upper&Lower Band - NO.of Periods: ", end="")
+            numPeriod = int(input())
+            break
+        except:
+            print("Invalid input! Try again.")
+            
+    #--- SMA = (Sum of (closing) prices over a period) / (No.of time periods) ---
     numP = 1
     prevEMA = None
     for i in range(len(li_close)):
@@ -150,18 +187,18 @@ while isAgain == True :
                 li_rsi.append("")
                 
 #>>>>>>>>>>>>>>>>>
-                
+            
         else:                
             li_sma.append("") #Append null using ""/None
             li_up.append("")
             li_down.append("")
             li_rsi.append("")
-            
+
 #>>>>>>>>>>>>>>>>>
             
         numP += 1
         
-    #--- EMA = (Current (closing) price * Multiplier) + (Previous EMA * (1 - Multiplier))
+    #--- EMA = (Current (closing) price * Multiplier) + (Previous EMA * (1 - Multiplier)) ---
     numP = 1
     for i in range(len(li_close)):
         if numP == numPeriod:
@@ -176,15 +213,15 @@ while isAgain == True :
         else:                
             li_ema.append("") #Append null using ""/None
         numP += 1
-        
-#>>>>>>> +Others ?
+
+#>>>>>> +Others ?
         
     li_volume = res["volume"]
     li_value = res["value"]
 
     # Create .txt & print to it
     rndStr = str(rnd)
-    #res_txtFile = f"C://Users//LENOVO//Desktop//thai_stock_expert//outputTxt//{sym}_{rndStr}.txt" #Must use
+    #res_txtFile = f"C://Users//LENOVO//Desktop//thai_stock_expert//output//{rndStr}_{sym}.txt" #Must use
             # Opening the file in write mode ("w") will create the file if it doesn't exist,
             # or overwrite it if it does
     #with open(res_txtFile, "w") as file:
@@ -192,9 +229,8 @@ while isAgain == True :
 
     # Create .csv & print to it
     csvHeader = ['li_time','li_open','li_high','li_low','li_close','li_volume',
-                 'AAPL.Adjusted','li_down','li_sma','li_ema','li_up','direction','li_rsi']
-                ### PATH !!!
-    res_csvFile = f"C://Users//LENOVO//Desktop//thai_stock_expert//output//{sym}_{rndStr}.csv"
+                 'li_up', 'li_down','li_sma','li_ema','li_rsi']
+    res_csvFile = f"C://Users//LENOVO//Desktop//thai_stock_expert//output//{rndStr}_{sym}.csv" #####
     with open(res_csvFile, "w", newline='') as file:
         writer = csv.writer(file)
         writer.writerow(csvHeader) #X writerows
@@ -208,23 +244,31 @@ while isAgain == True :
             
             #--- csvRow ---                        #float/str() = no diff.
             csvRow = [dateTime, li_open[i], li_high[i], li_low[i], li_close[i], li_volume[i],
-                      0,li_down[i],li_sma[i],li_ema[i],li_up[i],0,li_rsi[i]] 
+                      li_up[i], li_down[i], li_sma[i], li_ema[i], li_rsi[i]] 
             writer.writerow(csvRow) #x,x,.. ->0,0,..
-
+        
     # Display the retrieved data
         #print("close: ", li_close)
 
     # Store the stock-name history
-    stockNames.append(f"{sym}_{rndStr}")
+    stockNames.append(f"{rndStr}_{sym}")
 
     # Start again
-    isAgain = False
-    print("Get more? (y or n): ", end="")
-    z = input()
-    if z == "y":
-        isAgain = True 
-        rnd += 1
-        print("--------------------------------")
+    while True:
+        print("Get more? (y or n): ", end="")
+        again = input()
+        if again == "y":
+            isAgain = True 
+            rnd += 1
+            print("--------------------------------")
+            break # Continue to get more
+        elif again == "n":
+            isAgain = False
+            print("================================")
+            break
+        else:
+            print("Invalid input! Try again.")
+        
     #except:
     #    print("Something wrong, check the source code!")
     #    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
@@ -238,29 +282,29 @@ for i in stockNames:
 # #-#-#-#-# Visualization Part #-#-#-#-#
 isAgain = True
 while isAgain == True :
-    try:
-        print("Type <stock>_<round> to be visualized: ", end="")
-        out = input()
+    #try:
+    print("Type <round>_<stock> to be visualized: ", end="")
+    rnd_stockName = input()
         
-# >>>>>> Open that file -> Visualize call method & send param in
+# Visualize ##### Make sure the imported .py's path = this .py's path before 
+    showCandleStick.visualize(rnd_stockName) #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-        print("Get more? (y or n): ", end="")
-        again = input()
-        if again == "y":
-            isAgain = True
-            print("--------------------------------")
-        elif again == "n":
-            isAgain = False
-        else:
-            isAgain = False
-            print("Invalid input!")
-    except:
-        print("Something wrong, check the source code!")
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    print("Visualize more? (y or n): ", end="")
+    again = input()
+    if again == "y":
+        isAgain = True
+        print("--------------------------------")
+    elif again == "n":
+        isAgain = False
+        print("================================")
+    else:
+        print("Invalid input! Try again.")
+    #except:
+    #    print("Invalid stock name OR something wrong!")
+    #    continue
+
         
-print("=======================================")
-
-
+# ================= END OF PROGRAM =================
 """ out (dictionary (API response))
 [{
 'lastSequence': x/[..],
