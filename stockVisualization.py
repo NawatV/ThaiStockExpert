@@ -1,3 +1,4 @@
+# ----- Plotly -----
 import plotly.graph_objects as pgo
 import pandas as pd
 from plotly.subplots import make_subplots
@@ -5,13 +6,16 @@ import plotly.express as px
     #print(px.colors.qualitative.Plotly) | https://plotly.com/python/discrete-color/
 
 # ========= Read history data in .csv & visualize in candlestick with indicators |
-#           X(tmp): try-except | Customize the layout | Created func. | Renamed =================
+#           X(tmp): try-except | Customize the layout | Create func. |
+#           +Hovermode | +Overbought/sold | +numPeriod after indicator's name =================
 
-def visualize(rnd_stockName):
+
+# #-#-#-#-# Visualization Part #-#-#-#-#
+def getCandySticks(rnd_stockName):
     #try:
     # -> lower for csv file's name
     csvFileName = rnd_stockName.lower()
-    # Read .csv      ### PATH !!!
+    # Read csv      ##### PATH !!!
     csvPath = f"C://Users//LENOVO//Desktop//thai_stock_expert//output//{csvFileName}.csv"   
     csvOP = pd.read_csv(csvPath)
     # --- Get title ---
@@ -19,6 +23,10 @@ def visualize(rnd_stockName):
     name = names[1]
     name = name.upper()
     title = f"Candlestick Chart with Indicators: {name}"
+
+    # --- Get numPeriod_str --- #<<<<<<<<<<<
+    li_numPeriod = csvOP['li_numPeriod']
+    numPeriod_str = str(int(li_numPeriod[0]))
 
     # Create a layout grid of plots (subplots); 4 rows 1 col
     fig = make_subplots(shared_xaxes= True, #Solved: trade-off (-)date (+)vol.movable
@@ -38,9 +46,10 @@ def visualize(rnd_stockName):
         close= csvOP['li_close'],
         name="Candlestick",
         increasing_line_color="palegreen",   
-        decreasing_line_color="crimson"  
-        ),
-        row=1, col=1)
+        decreasing_line_color="crimson",
+                                 ),
+        row=1, col=1
+                  )
 
     ### 2nd row: No use -> Solved the layout prob.
 
@@ -54,19 +63,23 @@ def visualize(rnd_stockName):
     fig.add_trace(
         pgo.Bar(x=csvOP['li_time'], y=csvOP['li_volume'],           
         width= bar_width , name="Volume", #X visible='legendonly'
-        marker_color='darkblue'
+        marker_color='darkblue',
                 ),
         row=3, col=1
                  )
 
     # 4th row: Add trace 3 to row[3]col[0]
     fig.add_trace(
-        pgo.Scatter(x=csvOP['li_time'], y=csvOP['li_rsi'], mode="lines",          
-        name="RSI", showlegend= False,
+        pgo.Scatter(x=csvOP['li_time'], y=csvOP['li_rsi'], mode ="lines",          
+        name= f"RSI {numPeriod_str}", showlegend= False,
         marker_color='orange'
                 ),
         row=4, col=1
                  )
+    #--- Overbought >70,red, Oversold <30,green) ---                            
+    fig.add_hrect(y0=70, y1=100, line_width=0, fillcolor="red", opacity=0.2, row=4, col=1)
+    fig.add_hrect(y0=0, y1=30, line_width=0, fillcolor="green", opacity=0.2, row=4, col=1)
+
 
     # ----- No use, subplots->add_trace instead -----
     # Candlestick
@@ -80,6 +93,7 @@ def visualize(rnd_stockName):
     # Update layout
     #--- Axis-X & Y ---    
     fig.update_layout(title= title,
+        hovermode='x unified',  #= vertical line + unified tooltip
         xaxis= dict(title="",
                     title_font= dict(size=12, color='black'),
                         #tickangle= -45,    ## Plot dots in line graph
@@ -106,28 +120,32 @@ def visualize(rnd_stockName):
 
         ### (3rd (bottom) y-axis)
         yaxis3= dict(title="Volume",
-                     title_font= dict(size=12, color='black'),
+                     title_font= dict(size=10, color='black'),
                      domain=[0.07,0.17]
                      ),
                     #X: height = 800 due to unresponsive to browser
 
         ### (4th (bottom) y-axis)
-        yaxis4= dict(title="RSI",
-                     title_font= dict(size=12, color='black'),
-                     domain=[0,0.06]
+        yaxis4= dict(title= f"RSI {numPeriod_str}", 
+                     title_font= dict(size=10, color='black'),
+                     domain=[0,0.06],
+                     range=[0, 100] #for Overbought & Oversold 
                      )
         )
 
     # Add details on the layout
+    
+    #<<<<<<<<<
+    
     #--- SMA & EMA ---
-    fig.add_trace(pgo.Scatter(x= csvOP['li_time'], y= csvOP['li_sma'], mode='lines', name='SMA',
+    fig.add_trace(pgo.Scatter(x= csvOP['li_time'], y= csvOP['li_sma'], mode='lines', name=f'SMA {numPeriod_str}',
                   marker= dict(color= "grey", line= dict(width=0.025))))
-    fig.add_trace(pgo.Scatter(x= csvOP['li_time'], y= csvOP['li_ema'], mode='lines', name='EMA',
+    fig.add_trace(pgo.Scatter(x= csvOP['li_time'], y= csvOP['li_ema'], mode='lines', name=f'EMA {numPeriod_str}',
                   marker= dict(color= "black", line= dict(width=0.025))))
     #--- upper & lower bands ---
-    fig.add_trace(pgo.Scatter(x= csvOP['li_time'], y= csvOP['li_up'], mode='lines', name='Upper Band',
+    fig.add_trace(pgo.Scatter(x= csvOP['li_time'], y= csvOP['li_up'], mode='lines', name=f'Upper Band {numPeriod_str}',
                   marker= dict(color= "green", line= dict(width=0.025))))
-    fig.add_trace(pgo.Scatter(x= csvOP['li_time'], y= csvOP['li_down'], mode='lines', name='Lower Band',
+    fig.add_trace(pgo.Scatter(x= csvOP['li_time'], y= csvOP['li_down'], mode='lines', name=f'Lower Band {numPeriod_str}',
                   marker= dict(color= "red", line= dict(width=0.025))))
 
     fig.show()
@@ -138,4 +156,32 @@ def visualize(rnd_stockName):
     #    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
     #return
-    
+
+
+def visualize():
+    isAgain = True
+    while isAgain == True :
+        #try:
+        print("Type <round>_<stock> to be visualized: ", end="")
+        rnd_stockName = input()
+
+# Visualize ##### Make sure the imported .py's path = this .py's path before 
+        getCandySticks(rnd_stockName)
+
+        print("Visualize more? (y or n): ", end="")
+        again = input()
+        if again == "y":
+            isAgain = True
+            print("------------------------------------")
+        elif again == "n":
+            isAgain = False
+            print("====================================")
+        else:
+            print("Invalid input! Try again.")
+        #except:
+        #    print("Invalid stock name OR something wrong!")
+        #    continue
+
+
+# ================= END OF PROGRAM =================
+
