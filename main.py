@@ -21,7 +21,7 @@ while True:
         for fn in RSDfn_list:
             print("----> ", fn)
     elif action == "3":
-        print("------------------------------------")
+        print("---- Restart the program if it takes too long ----")
         stVis.visualize() #stockVisualization.py
     elif action == "4":
         break
