@@ -12,7 +12,8 @@ import numbers
 #           Unavai. to 'Start-End' for m(min) Loop | +Up/Low Bands +RSI |
 #           Call func. | Handle input errors (all nec.) | Data struc. changed | Done lower/upper
 #           def getRSDfn_list() | show indicators w/ numP | try-except
-#           ** Multi-numPs & bugs fixed | +MACD,Signal,His =================
+#           ** Multi-numPs & bugs fixed | +MACD,Signal,His || + opti.del func.('rnd_fileNameWOtype')
+#           | +exit opt. | Check isUniPath before saving .csv | Optimize several spots =================
 
 
 # #-#-#-#-# Getting & Storing Part #-#-#-#-# 
@@ -175,13 +176,14 @@ def getMACDlist(li_close):
 def getSignalList(li_macd):
     # Create signal
     #--- li_macd_wnon <- ["" -> None] ---
-    li_macd_wnon = []
-    for i in range(len(li_macd)):
-        if li_macd[i] == "":
-            li_macd_wnon.append(None)
-        else:
-            li_macd_wnon.append(li_macd[i])
-            
+        # Faster & easier to read
+    li_macd_wnon = [None if val == "" else val for val in li_macd] 
+        #li_macd_wnon = []
+        #for i in range(len(li_macd)):
+        #    if li_macd[i] == "":
+        #        li_macd_wnon.append(None)
+        #    else:
+        #        li_macd_wnon.append(li_macd[i])
     li_signal_tmp = getEMAlist_numP(9, li_macd_wnon, True)    
     return li_signal_tmp
 
@@ -209,17 +211,73 @@ def getHistogramList(li_close, li_macd, li_signal):
     return li_histogram
 
 
-def getRSDfn_list(): ##### PATH !!!
-    RSDfn_path = "C://Users//LENOVO//Desktop//thai_stock_expert//output//"
-    RSDfn_list = [
-        fileName for fileName in os.listdir(RSDfn_path)
-            if os.path.isfile(os.path.join(RSDfn_path, fileName))
-                # Filter out 'RSDfn_path' of 'RSDfn_path//fileName' -> @'fileName'
-                # if @'fileName' exists (== True) in 'a list of all files in 'RSDfn_path'
-                # then fileName = @'fileName' -> RSDfn_list.append(fileName)
-                # and keep doing until all the files in 'RSDfn_path' are met 
+def getRSDpath_list(purpose): ##### PATH !!!
+    RSD_dir = "C://Users//LENOVO//Desktop//thai_stock_expert//output//"
+    if purpose == "view":
+                    # A concise & eff.way to create a new list.
+        RSDfn_list = [
+            fileName
+            for fileName in os.listdir(RSD_dir)
+            if os.path.isfile(os.path.join(RSD_dir, fileName))
+                # Build a full path -> 'RSD_dir//fileName'
+                # Return True if the full path exists in 'RSD_dir'
+                # Then the rest will take action: RSDfn_list.append(fileName) | fileName is in 'RSD_dir' 
+                # Deep doing until all the file paths in 'RSD_dir' are met 
                  ]
-    return RSDfn_list
+        return RSDfn_list   #Will get only "<RSD file name>.<file type>"
+    elif purpose == "del":
+        RSDpath_list = [
+            os.path.join(RSD_dir, fileName)
+            for fileName in os.listdir(RSD_dir)
+            if os.path.isfile(os.path.join(RSD_dir, fileName))
+                     ]        
+        return RSDpath_list #Will get "RSD's full path"
+    else:
+        print("Something wrong while 'getRSDpath_list' is being processed !!")
+
+def delRSDpath():
+    RSDpath_list = getRSDpath_list("del")
+    #----- Optimize using 'dict' -----
+    RSDpath_dic = {}
+    for RSDpath in RSDpath_list:
+        RSD_dir, fileName = os.path.split(RSDpath) #Split to extract 'fileName.fileType'
+        fileNameWOtype, fileType = fileName.split(".")
+        RSDpath_dic[fileNameWOtype] = RSDpath
+        
+    while True:
+        print("Delete all? (y, n, or Exit (exit)): ", end="")
+        delAll = input()
+        if delAll == "y":
+            for pathKey in RSDpath_dic: #X: .keys()
+                os.remove(RSDpath_dic[pathKey])
+        elif delAll == "n":
+            print("Type the chosen one(s)")
+            print("i.e., <round>_<stock name> or <r>_<sn>, <r>_<sn>,..: ", end="")   
+            #--- Invalid input here is OK ---
+            delFnWOtype_inputs = input()
+            if "," in delFnWOtype_inputs:
+                #X:'for' in 'for' (O(n^2)) | A concise & eff.way to create a new list.
+                li_delFnWOtype = [s.strip() for s in delFnWOtype_inputs.split(",")] #Remove space
+                for key in li_delFnWOtype: #O(n) - for in list
+                    if key in RSDpath_dic: #O(1) - search in dict
+                        os.remove(RSDpath_dic[key])
+                #OPT.: for key in map(str.strip, delFnWOtype_inputs.split(",")):
+                #           if key in RSDpath_dic: os.remove(RSDpath_dic[key])
+            else:
+                key = delFnWOtype_inputs.strip() #Remove space
+                if key in RSDpath_dic:     #O(1) - search in dict 
+                    os.remove(RSDpath_dic[key])
+        elif delAll == "exit":
+            return
+        else:
+            print("Invalid input! Try again.")
+            print("------------------------------------")
+            continue
+
+        print("Successfully deleted as requested.")
+        break
+
+
 #-----------------------------
 
 
@@ -238,10 +296,12 @@ def getStockData():
     while isAgain == True :
         try:
             # Get candle stick | *** Latest data = 3 working days before | Unavai.'15m'
-            print("Beware of error due to improper input!")
-            print("Stock Name (Case-Insen):", end=" ")
+            print("!! Beware of error due to improper input!!")
+            print("Stock Name (Case-Insen) OR Exit (exit):", end=" ")
             sym = input()
             sym = sym.lower()
+            #--- Exit before ---
+            if sym == "exit": return
             
             print("Interval -1d(daily), 1w(weekly), 1M(monthly),")  # Internal's description
             print("1,3,5,10,30,60,120,240m (per..minute(s)): ", end="") # Unavai. to 'Start-End'
@@ -340,13 +400,18 @@ def getStockData():
 
                     if "," in numPeriod_inputs:
                         #--- Multi values in 'li_numPeriod' ---
-                        numPeriods_str =  numPeriod_inputs.split(",")
-                        for numP in numPeriods_str:
-                            numP = int(numP) 
-                            li_numPeriod.append(numP)
+                            # A concise & eff.way to create a new list & a bit faster
+                        li_numPeriod = [int(numP.strip())
+                                        for numP in numPeriod_inputs.split(",") if numP.strip()]
+                            #numPeriods_str =  numPeriod_inputs.split(",")
+                            #for numP in numPeriods_str:
+                            #    numP = int(numP) 
+                            #    li_numPeriod.append(numP)
                         #--- Fill the rest with "" ---
-                        for i in range(len(li_close) - len(li_numPeriod)): ## required !!
-                            li_numPeriod.append("")
+                            # Better mem.allo.eff.
+                        li_numPeriod += [""] * (len(li_close) - len(li_numPeriod)) ## required !!
+                            #for i in range(len(li_close) - len(li_numPeriod)): ## required !!
+                            #   li_numPeriod.append("")
                             
                         break
                     else:
@@ -442,44 +507,71 @@ def getStockData():
                     csvHeader.append(f'li_rsi_{numPeriod}')
 
                             ##### PATH !!!
-            res_csvFile = f"C://Users//LENOVO//Desktop//thai_stock_expert//output//{rndStr}_{sym}.csv"
+            uniPath = f"C://Users//LENOVO//Desktop//thai_stock_expert//output//{rndStr}_{sym}.csv"
+            while True:
+                if os.path.isfile(uniPath):
+                    rnd += 1
+                    rndStr = str(rnd)   ##### PATH !!!
+                    uniPath = f"C://Users//LENOVO//Desktop//thai_stock_expert//output//{rndStr}_{sym}.csv" 
+                else:
+                    break
+                    
+            res_csvFile = uniPath
+
+          #-------------- Optimized : from O((i*j)*5) to O(i*j) ------------------------------------
+            li_indiRow = [ [li[i] for li in
+                              #3. Get li[0] = [sma_14_0, sma_20_0,..,rsi_20_0] which is indiRow 1
+                              #      ,li[1] = [sma_14_1, sma_20_1,..,rsi_20_1] which is indiRow 2
+                              #      ,...   
+                           li_sma_all + li_ema_all + li_up_all + li_down_all + li_rsi_all]
+                              #2. Concat.(+), the result is
+                                #[
+                                #  [sma_14_0, sma_14_1, ..., sma_14_n],
+                                #  [sma_20_0, sma_20_1, ..., sma_20_n],
+                                #  ...
+                                #  [rsi_20_0, rsi_20_1, ..., rsi_20_n]
+                                #]
+                for i in range(len(li_close)) #1. 1st loop
+                         ]
+
             with open(res_csvFile, "w", newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow(csvHeader) #X writerows
 
-                for i in range(len(li_close)):                
-                    #--- dateTime ---
+                for i, indiVals in enumerate(li_indiRow): #'enu.' returns idx(-> i) & val(-> indiVals) in the loop
+                    #--- Convert timestamp ---
                     timestamp = li_time[i]
                     dt = datetime.fromtimestamp(timestamp) #Unix timestamp -> local time
                                                            #e.g. 2025-03-25 00:00:00 is OK
                     dateTime = str(dt)
-                    
-                    #===== csvRow =====                        #float/str() = no diff.
-                    csvRow = [dateTime, li_open[i], li_high[i], li_low[i], li_close[i], li_volume[i],
-                              li_numPeriod[i], li_macd[i], li_signal[i], li_histogram[i]]
+                    #--- 1. csvRow <-added- fixed values ---
+                                                           #float/str() = no diff.
+                    csvRow = [
+                        dateTime, li_open[i], li_high[i], li_low[i], li_close[i], li_volume[i],
+                        li_numPeriod[i], li_macd[i], li_signal[i], li_histogram[i]
+                    ]
+                    #--- 2. csvRow <-extend csvRow for adding- based-on-'li_numPeriod' values
+                    csvRow.extend(indiVals)
+                    #--- 3. Write csvRow in the csv file ---
+                    writer.writerow(csvRow)
+
+           #-------------- Pre-Optimized : O((i*j)*5) ------------------------------------
+                    #for i in range(len(li_close)):                
+                    #--- dateTime ---
+                        #timestamp = li_time[i]
+                        #dt = datetime.fromtimestamp(timestamp)                                                     
+                        #dateTime = str(dt)
+                    #===== csvRow =====                        
+                        #csvRow = [dateTime, li_open[i], li_high[i], li_low[i], li_close[i], li_volume[i],
+                                  #li_numPeriod[i], li_macd[i], li_signal[i], li_histogram[i]]
                     #--- Add values based on 'li_numPeriod' ---
                     ## li_sma_all
-                    for j in range(len(li_numPeriod)):
-                        if str(li_numPeriod[j]) != "":
-                            csvRow.append(li_sma_all[j][i])
-                    ## li_ema_all
-                    for j in range(len(li_numPeriod)):
-                        if str(li_numPeriod[j]) != "":
-                            csvRow.append(li_ema_all[j][i])
-                    ## li_up_all
-                    for j in range(len(li_numPeriod)):
-                        if str(li_numPeriod[j]) != "":
-                            csvRow.append(li_up_all[j][i])
-                    ## li_down_all
-                    for j in range(len(li_numPeriod)):
-                        if str(li_numPeriod[j]) != "":
-                            csvRow.append(li_down_all[j][i])
-                    ## li_rsi_all
-                    for j in range(len(li_numPeriod)):
-                        if str(li_numPeriod[j]) != "":
-                            csvRow.append(li_rsi_all[j][i])
-
-                    writer.writerow(csvRow)
+                        #for j in range(len(li_numPeriod)):
+                            #if str(li_numPeriod[j]) != "":
+                                #csvRow.append(li_sma_all[j][i])
+                    ## li_ema_all, li_up_all, li_down_all, and li_rsi_all as well
+                        #writer.writerow(csvRow)
+           #------------------------------------------------------------------------------
                 
             # Display the retrieved data
                 #print("close: ", li_close)

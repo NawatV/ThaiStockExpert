@@ -12,7 +12,7 @@ import numbers
 # ========= Read history data in .csv & visualize in candlestick with indicators |
 #           Customize the layout | Create func. | try-except
 #           +Hovermode | +Overbought/sold | +numPeriod after indicator's name |
-#           ** Multi-numPs & bugs fixed | Cus.the data lay. =================
+#           ** Multi-numPs & bugs fixed | Cus.the data lay. || +exit opt. =================
 
 
 # #-#-#-#-# Visualization Part #-#-#-#-#
@@ -243,8 +243,10 @@ def visualize():
     while isAgain == True :
         try:
             print("!! Accuracy depends on the retrieved data !!")
-            print("Type <round>_<stock> to be visualized: ", end="")
+            print("Type <round>_<stock> to be visualized or Exit (exit): ", end="")
             rnd_stockName = input()
+            #--- Exit before ---
+            if rnd_stockName == "exit": return
 
     # Visualize ##### Make sure the imported .py's path = this .py's path before 
             getCandySticks(rnd_stockName)
