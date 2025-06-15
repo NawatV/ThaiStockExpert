@@ -10,9 +10,10 @@ import numbers
 
 
 # ========= Read history data in .csv & visualize in candlestick with indicators |
-#           Customize the layout | Create func. | try-except
+#           Customized the layout | Create func. | try-except
 #           +Hovermode | +Overbought/sold | +numPeriod after indicator's name |
-#           ** Multi-numPs & bugs fixed | Cus.the data lay. || +exit opt. =================
+#           ** Multi-numPs & bugs fixed | Customized the data layout
+#           | +Exit opt. || Optimized the code =================
 
 
 # #-#-#-#-# Visualization Part #-#-#-#-#
@@ -150,7 +151,7 @@ def getCandySticks(rnd_stockName):
         # Update layout
         #--- Axis-X & Y ---    
         fig.update_layout(title= title,
-            hovermode="x unified",  #= vertical line + unified tooltip
+            hovermode="x unified",              #= vertical line + unified tooltip
             xaxis= dict(title="",
                         title_font= dict(size=12, color="black"),
                             #tickangle= -45,    ##Plot dots in line graph
@@ -160,9 +161,9 @@ def getCandySticks(rnd_stockName):
                         gridcolor="lightgray",
                         rangeslider=dict(
                             visible= True,
-                            thickness= 0.06 ## key
+                            thickness= 0.06     ## key
                             ),
-                        type="date"  #Needed for date-based sliders
+                        type="date"             #Needed for date-based sliders
                         ),
 
             # xaxis2 - No use
@@ -171,41 +172,34 @@ def getCandySticks(rnd_stockName):
             yaxis= dict(title= f"Price: {name}",
                         title_font= dict(size=12, color="black"),
                         #dtick="..",            ##Plot dots in line graph
-                        #tickfont= dict(size=12, color='black'),
-                        tickformat= ".2f", #Limit to 2 decimal places
-                        domain=[0.51, 1], 
-                            #shrink candlestick plot to 80% height, leaving 20% gap at the bottom
+                        tickformat= ".2f",      #Limit to 2 decimal places
+                        domain=[0.51, 1],       #[gap below, total height]
                         ),
 
             ### (3rd y-axis)
             yaxis3= dict(title="Volume",
                          title_font= dict(size=10, color="black"),
-                         #tickformat= ".2f",
                          domain=[0.31,0.41]
-                         ),
-                        #X: height = 800 due to unresponsive to browser
-
+                         ),                     #X: height = 800 due to unresponsive to browser
+                        
             ### (4th y-axis)
-            yaxis4= dict(title= f"RSI", 
+            yaxis4= dict(title= "RSI", 
                          title_font= dict(size=10, color="black"),
-                         #tickformat= ".2f",
                          domain=[0.22,0.28],
-                         range=[0, 100] #for Overbought & Oversold 
+                         range=[0, 100]         #For Overbought & Oversold 
                          ),
 
             ### (5th y-axis)
             yaxis5= dict( title=dict (text="MACD<br>& Signal"),  #Line break here
                           title_font= dict(size=8, color="black"),
-                          #tickformat= ".2f",
                           domain=[0.11, 0.20],
                         ),
 
             ### (6th y-axis)
             yaxis6= dict( title=dict (text="Histogram"),  #Line break here
                           title_font= dict(size=10, color="black"),
-                          #tickformat= ".2f",
                           domain=[0, 0.09],
-                          zeroline=True, # ensures histogram expands from 0
+                          zeroline=True,        #Ensures histogram expands from 0
                           zerolinewidth=1,
                           zerolinecolor="grey",
                           range=None
@@ -235,7 +229,7 @@ def getCandySticks(rnd_stockName):
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
     #return
-#-------------------------------
+#--------------------------------------------------------------
 
 
 def visualize():
