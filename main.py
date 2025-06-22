@@ -8,8 +8,8 @@ import os
 
 while True:
     print("Actions: ")
-    print("-> Get stock data - 1")
-    print("-> View the retrieved stock data - 2")
+    print("-> Get stock data (+web scraping) - 1")
+    print("-> View stock data - 2")
     print("-> Visualize: Candlestick - 3")
     print("-> Compare stock data - 4")
     print("-> Delete stock data - 5")

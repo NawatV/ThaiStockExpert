@@ -7,13 +7,14 @@ from keras.models import Sequential
 #------ Visualization ------
 import matplotlib.pyplot as plt
 
-#======= LSTM:Predict using 'li_close' & plot stock's price trend (still inaccurate)  ======= 
+#======= LSTM:Predict using 'li_close' & plot stock's price trend (less inaccurate) ||  =======
+#        Optimizing attempt (= 100->25 days, _cutLatest.csv) =======
 
 #============= 1.DATA Part: =============
 print("Please wait...")
 # Read csv & get headers             
                            ### PATH !!!
-data = pd.read_csv("C://Users//LENOVO//Desktop//thai_stock_expert//output//1_amata_LSTM_addRows.csv")
+data = pd.read_csv("C://Users//LENOVO//Desktop//thai_stock_expert//output//1_amata_LSTM_cutLatest.csv")
 
 
 # Normalize data
@@ -42,23 +43,27 @@ def create_sequences(data, window_size):
         y.append( data[i + window_size] )     # y=[ [e[15]]     ,[e[16]],.......,[e[n]]             ]
     return np.array(X), np.array(y)
 
-window_size = 15
+###### So far from testing, use 100 to predict the 25-day price trend [4:1] has been optimal <<<<
+#      with '_cutLatest.csv' due to 1 incontinuous-date data row by SET API
+window_size = 100 
 X, y = create_sequences(data_close_normalized, window_size)
-print(X.shape)  ## Shape = (714,15,1) cuz from i=15(ele 16 due to w_s=15) to i=728(ele 729)
-                #X: 'X = X.reshape((X.shape[0], X.shape[1], 1))' - look above
-print(y.shape)  ## Shape = (714, 1)
+print("X.shape:", X.shape)  ## Shape = (714,15,1) cuz from i=15(ele 16 due to w_s=15) to i=728(ele 729)
+                            #X: 'X = X.reshape((X.shape[0], X.shape[1], 1))' - look above
+print("y.shape:", y.shape)  ## Shape = (714, 1)
 
 
 # All= training data
 X_train = X
 y_train = y
 
-# Split 'X, y' into training & testing sets   
+#---------- Former Manipulation --------------------------------
+# Split 'X, y' into training & testing sets
 #split = int(0.8 * len(X))
 #X_train, X_test = X[:split], X[split:] # X=[ [e[0]-e[14]],[e[1]-e[15]],. | .,[e[n-1-15]-e[n-1]] ]
                                         #          X_train (80%)          |     X_test (20%)       
 #y_train, y_test = y[:split], y[split:] # y=[ [e[15]]     ,[e[16]],.......|..,[e[n]]             ]
                                         #          y_train (80%)          |     y_test (20%) 
+#----------------------------------------------------------------
 
 
 #======== 2.TRAIN a LSTM model (4 LSTM layers + 1 output layer): ========
@@ -105,50 +110,65 @@ lstm_model.fit(X_train, y_train, epochs=30, batch_size=24, verbose=1)
         #250/250 [==============================] - 3s 6ms/step - loss: 0.0041
 
 
-#======== 3.TEST the LSTM model: ========
+#======== 3.TEST the LSTM model & Reshape: ========
 x_last_seq = data_close_normalized[-window_size:]       #Shape = (15, 1) | [ ..,[e[n-1-15]-e[n-1]] ] }See above
 x_last_seq = x_last_seq.reshape((1, window_size, 1))    #Reshape -> (1, 15, 1)
 
 
-# Make price trend prediction for the next n=input days
+# Make price trend prediction for the next n=input days (+Reshape)
 y_pred_vals = [] #@@@
-current_input = x_last_seq.copy() #Shape= (1, 15, 1) =[batch_size, len(seq), feature]
+x_current_input = x_last_seq.copy() #Shape= (1, 15, 1) =[batch_size, len(seq), feature]
 print("Predict for the next (days): ", end="")
 n = int(input())
 for _ in range(n):
     ## Predict 'y_next_pred'   | Shape 2D: (-1,1)
-    y_next_pred = lstm_model.predict(current_input)             #** y_next_pred: np.array( [[0.17280594]] )
+    y_next_pred = lstm_model.predict(x_current_input)           #** y_next_pred: np.array( [[0.17280594]] )
     # Add to 'y_pred_vals'
     y_pred_vals.append(y_next_pred[0][0])                       #** y_next_pred[0][0]: 0.17280594
     # Reshape to 3D: (1,1,1)
     y_next_pred_reshaped = np.reshape(y_next_pred, (1, 1, 1))   #-> y_next_pred: np.array( [[[0.17280594]]] )
     # Concatenate properly           To slice (1, [day1-cut,day2,..day15], 1), To add 'y_next_pred_re.'
                                    #So we get (1, [day2,.., day15, y_next_pred_re(=day16)], 1)
-    next_input = np.concatenate((current_input[:, 1:, :], y_next_pred_reshaped), axis=1)
-    # Get 'current_input'
-    current_input = next_input
+    next_input = np.concatenate((x_current_input[:, 1:, :], y_next_pred_reshaped), axis=1)
+    # Get 'x_current_input'
+    x_current_input = next_input
      
 
-# Perform 'inverse transform' = Convert from the normalized back to the original scale (= real prices)
+# Reshape: 'inverse transform' = Convert from the normalized back to the original scale (= real prices)
                                            #np.array: Ensure y_pred_vals's format is fit to 'inverse_transform()'
                                            #.reshape(-1,1): Converts it to 2D:shape=(n,1) as required
-y_pred_vals_actual = scaler.inverse_transform(np.array(y_pred_vals).reshape(-1, 1)) #@@@
-#--- All past values ---
+                                    ##'Train part' to be plotted 
 y_vals_actual = scaler.inverse_transform(y_train.reshape(-1, 1))                    
+                                    ##'Future part' to be plotted 
+y_pred_vals_actual = scaler.inverse_transform(np.array(y_pred_vals).reshape(-1, 1)) #@@@
+
+#---------- Former Manipulation --------------------------------
+#y_train_reshaped = scaler.inverse_transform(y_train.reshape(-1, 1)) 
+#y_test_reshaped = scaler.inverse_transform(y_test.reshape(-1, 1))
+#y_pred = lstm_model.predict(X_test)
+#y_pred_reshaped = scaler.inverse_transform(y_pred.reshape(-1, 1))
+#----------------------------------------------------------------
 
 
 #======== 4.VISUALIZE the outputs: ========
 # Plot the outputs
 plt.figure(figsize=(10,6))
-
+                                    ##'Train part' (actual prices) to be plotted from idx 0-713
 plt.plot(range(len(y_vals_actual)), y_vals_actual, label='Actual', color='black')
+                                    ##'Future part'(predicted price trend) to be plotted from idx 714- 714+n (up to n)
 plt.plot(range(len(y_vals_actual), len(y_vals_actual) + len(y_pred_vals_actual)), y_pred_vals_actual,
-    label='Predicted Trend', color='blue') #linestyle='--'
-    #Actual prices are plotted from index 0 to 713
-    #Predicted price trend is plotted from index 714 to 714+n (depending on n)
-#plt.plot(y_vals_actual, label='Actual', color='black')
-#plt.plot(y_pred_vals_actual, label='Predicted Trend', linestyle='--', color='blue')
+                                                label='Predicted Trend', color='blue') #linestyle='--'
 plt.axvline(x=len(y_vals_actual)-1, color='red', linestyle=':', label='Prediction Started!')
+
+#---------- Former Manipulation --------------------------------
+#plt.plot(range(len(y_train_reshaped)), y_train_reshaped, label='Actual', color='black')
+#plt.plot(range(len(y_train_reshaped), len(y_train_reshaped) + len(y_test_reshaped)),
+#                                    y_test_reshaped, label='Actual', color='black')
+#plt.plot(range(len(y_train_reshaped), len(y_train_reshaped) + len(y_pred_reshaped)),
+#                                    y_pred_reshaped, label='Actual', linestyle='--', color='red')
+#plt.axvline(x=len(y_train_reshaped)-1, color='black', linestyle=':', label='Prediction Started!')
+                  #Starting Point
+#----------------------------------------------------------------
 
 plt.title('Actual & "Predicted Trend"')
 plt.xlabel('Time')

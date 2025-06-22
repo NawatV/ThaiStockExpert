@@ -7,17 +7,20 @@ from datetime import datetime
 import numpy as np
 import os
 import numbers
-import pandas as pd 
+import pandas as pd
+# ----- Related .py -----
+import stockScraper as stScr
 
 # ========= Get & store stock's history data to the assigned csv -> Ready to visualize with indicators |
 #           Unavai. to 'Start-End' for m(min) Loop | +Up/Low Bands +RSI |
 #           Call func. | Handle input errors (all nec.) | Data struc. changed | Done lower/upper
-#           def getRSDfn_list() | show indicators w/ numP
-#           ** Multi-numPs & bugs fixed | +MACD,Signal,His || + opti.del func.('rnd_fileNameWOtype')
-#           | +Exit opt. | Check isUniPath before saving .csv | Optimize the code | +multi-Volatility | +NP
-#           | +input.strip()
+#           def getRSDfn_list() | Show indicators w/ numP
+#           ** Multi-numPs & bugs fixed | +MACD,Signal,His | +Opti.del func.('rnd_fileNameWOtype')
+#           | +Exit opt. | Check isUniPath before saving .csv | Optimized the code | +multi-Volatility | +NP
+#           | +input.strip() || +sharp ratio | +call func.in stScr | +continue-> big try-except (compre.)
+#           | 1 web scr/act opening
 #
-#           X(TMP): try-except =================
+#            try-except =================
 
 
 # #-#-#-#-# Getting & Storing Part #-#-#-#-# 
@@ -49,13 +52,13 @@ def getEMAlist_numP(numP, li_close, isForSignal):
                 #--- To get 'ema = prevEMA' ---
                 sumP = 0
                 for j in range(dayNum-numP, dayNum, 1):
-                    sumP += float(li_close[j])
+                    sumP += float(li_close[j])    
                 sma = sumP/numP
                 prevEMA = sma
                 ema = prevEMA
                 #------------------------------
                 li_ema_numP.append(ema) #Append 1st ema 
-            elif dayNum > numP and isForSignal == False: 
+            elif dayNum > numP and isForSignal == False:                
                 #--- emaMultiplyer = 2 / (No.of time periods + 1)
                 emaMultiplyer = 2/(numP + 1) 
                 ema = (float(li_close[i])*emaMultiplyer) + (prevEMA*(1-emaMultiplyer))
@@ -84,7 +87,7 @@ def getEMAlist_numP(numP, li_close, isForSignal):
                 else:                    
                     li_ema_numP.append("")
             #--------------------------------------------------------
-            else:                
+            else:
                 li_ema_numP.append("") #Append null using ""/None
             dayNum += 1
         except:
@@ -175,7 +178,7 @@ def getHistogramList(li_close, li_macd, li_signal):
     arr_macd_wzero = np.array([float(x) if x != "" else 0 for x in arr_macd])     #Tmp: "" -> 0
     arr_signal_wzero = np.array([float(x) if x != "" else 0 for x in arr_signal]) #Tmp: "" -> 0
     arr_histogram_wzero = arr_macd_wzero - arr_signal_wzero     #Subtract
-    arr_histogram = np.array(arr_histogram_wzero, dtype=object) #0 -> "" 
+    arr_histogram = np.array(arr_histogram_wzero, dtype=object) #0 -> ""
     arr_histogram[arr_histogram == 0.0] = ""                    #if no dtype=obj, all ele.-auto-> str
     li_histogram = arr_histogram.tolist()                       #Convert to list
     #--- ele. 'MACD - 0' -> "" --- 
@@ -210,17 +213,38 @@ def getNPlist(li_close):
     # Add it to 'li_np'
     li_np = df["np"].tolist()
     
-    return li_np 
+    return li_np
+
+#--- 2ND VIS : list: Sharp Ratio_t = ([Mean(R_t−n+1:t)] - R_f) / Volatility ---
+def getSharpList(numP, li_close, R_f):
+    # Create 'df'
+    dic_close = {"close": li_close}
+    df = pd.DataFrame(dic_close)
+    # 1. Cal.& Add 'daily change (%/100)' = R_t = ([P_t] - [P_t-1]) / [P_t-1]	
+    df["dayChange"] = df["close"].pct_change()                     #-> [NaN, 0.xx, 0.yy,..]
+    # 2. Cal '[Mean(R_t−n+1:t)]'
+    dayChange_mean = df["dayChange"].rolling(window = numP).mean() #-> [NaN, 0.xx, 0.yy,..]
+    # 3. Get R_f
+    R_f = R_f
+    # 4. Cal & Add 'numP-day rolling volatility'                    #-> [NaN, NaN,.., 0.xx (day numP+1),..]
+    volatility_rolling = df[f"volatility_{numP}"] = df["dayChange"].rolling(window = numP).std() 
+    # 5. Cal & Add 'numP-day rolling sharp' ## Correct - Convenient! | ## Start at 1st day of 'li_vola.'
+    df[f"sharp_{numP}"] = (dayChange_mean - R_f) / volatility_rolling
+    # 6. Add it to 'li_sharp_numP' & Change nan to "" | X: ' "" at 1st '
+    li_sharp_numP = df[f"sharp_{numP}"].tolist()
+    li_sharp_numP = ["" if pd.isna(val) else val for val in li_sharp_numP]
+    
+    return li_sharp_numP 
 #-------------------------------------------------------------
 
 def getRSDpath_list(purpose): ##### PATH !!!
     RSD_dir = "C://Users//LENOVO//Desktop//thai_stock_expert//output//"
     if purpose == "view":
-        RSDfn_list = [  # A concise & eff.way to create a new list. | Already familiar with
+        RSDfn_list = [  #A concise & eff.way to create a new list. | Already familiar with
             fileName
             for fileName in os.listdir(RSD_dir)
             if os.path.isfile(os.path.join(RSD_dir, fileName))
-                 ]
+                     ]
         return RSDfn_list   #Will get only "<RSD file name>.<file type>"
     elif purpose == "del":
         RSDpath_list = [
@@ -252,12 +276,12 @@ def delRSDpath():
             #--- Invalid input here is OK ---
             delFnWOtype_inputs = input().strip()
             if "," in delFnWOtype_inputs:
-                li_delFnWOtype = [s.strip() for s in delFnWOtype_inputs.split(",")] #X:'for' in 'for' (O(n^2))
+                li_delFnWOtype = [s for s in delFnWOtype_inputs.split(",")] #X:'for' in 'for' (O(n^2))
                 for key in li_delFnWOtype: #O(n) - for in list
                     if key in RSDpath_dic: #O(1) - search in dict
                         os.remove(RSDpath_dic[key])
             else:
-                key = delFnWOtype_inputs
+                key = delFnWOtype_inputs 
                 if key in RSDpath_dic:     #O(1) - search in dict 
                     os.remove(RSDpath_dic[key])
         elif delAll == "exit":
@@ -288,6 +312,12 @@ def getLi_numPeriod(numPeriod_inputs, li_close):
 
 
 def getStockData():
+
+    # Scrape annual R_f: https://www.thaibma.or.th/ > Gov.Yield Curve > 3 Month: annual R_f
+        #annual R_f (%/100) -[/252]-> R_f | ### stockScraper.py
+    percent_ann_R_f = stScr.scrape_percent_ann_R_f("3M")
+    R_f = (float(percent_ann_R_f)/100)/252         #=Daily 
+
     # Initialize an Investor object with your credentials
     investor = Investor(app_id="", app_secret="",
                         broker_id="SANDBOX", app_code="SANDBOX", is_auto_queue = False)
@@ -298,279 +328,287 @@ def getStockData():
     isAgain = True
     stockNames = []
     while isAgain == True :
-#        try:
-        rnd = 1
-        # Get candle stick | *** Latest data = 3 working days before | Unavai.'15m'
-        print("!! Beware of error due to improper input !!")
-        print("Stock Name (Case-Insen) OR Exit (exit):", end=" ")
-        sym = input()
-        sym = sym.lower()
-        #--- Exit before ---
-        if sym == "exit": return
+        try:
+            rnd = 1
+            # Get candle stick | *** Latest data = 3 working days before | Unavai.'15m'
+            print("!! Beware of error due to improper input !!")
+            print("Stock Name (Case-Insen) OR Exit (exit):", end=" ")
+            sym = input()
+            sym = sym.strip().lower()
+            #--- Exit before ---
+            if sym == "exit": return
             
-        print("Interval -1d(daily), 1w(weekly), 1M(monthly),")  # Internal's description
-        print("1,3,5,10,30,60,120,240m (per..minute(s)): ", end="") # Unavai. to 'Start-End'
-        itv = input().strip()
-        if itv in ["1d","1w","1M"]:
-            #--- Get lim after 'if itv' ---
-            print("Candle Amount (<=1000):", end=" ")
-            lim = input().strip()
-            try:
-                if int(lim) > 1000 or int(lim) < 1:
-                    print("Input out of 1-1000! Start again.")
-                    continue #Go back to while #X: break
-            except:
-                print("Invalid input! Start again.")
-                continue
-            #------------------------------
-            print("Start-End Date? (y or n): ", end="")
-            isDate = input()
-            if isDate == "y":
-                #--- Start-End Date ---
-                print("Start Date (DD/MM/YYYY): ", end="")
-                sd = input()
+            print("Interval -1d(daily), 1w(weekly), 1M(monthly),")  # Internal's description
+            print("1,3,5,10,30,60,120,240m (per..minute(s)): ", end="") # Unavai. to 'Start-End'
+            itv = input().strip()
+            if itv in ["1d","1w","1M"]:
+                #--- Get lim after 'if itv' ---
+                print("Candle Amount (<=1000):", end=" ")
+                lim = input().strip()
                 try:
-                    sdS = sd.split("/")
-                    y = sdS[2]
-                    m = sdS[1]
-                    d = sdS[0]
-                    startD = f"{y}-{m}-{d}T00:00"
-                    print("End Date (DD/MM/YYYY): ", end="")
-                    ed = input()
-                    edS = ed.split("/")
-                    y = edS[2]
-                    m = edS[1]
-                    d = edS[0]
-                    endD = f"{y}-{m}-{d}T23:59"
+                    if int(lim) > 1000 or int(lim) < 1:
+                        print("Input out of 1-1000! Start again.")
+                        continue #Go back to while #X: break
                 except:
                     print("Invalid input! Start again.")
-                    continue #Go back to while #X: break
-                #----------------------
-                res = market.get_candlestick(
-                symbol=sym,
-                interval=itv,   #1m, 3m, 5m, 10m, 15m, 30m, 60m, 120m, 240m, 1d, 1w, 1M
-                limit=lim,      #Candle amount
-                start= startD,  #Opt.- "YYYY-mm-ddTHH:MM"
-                end= endD,      #Opt.- "YYYY-mm-ddTHH:MM"
-                                    #If no -> get the candles in the latest period
-                                    #If yes -> get the candles in that period
-                normalized=True
-                )
-            elif isDate == "n":            
-                res = market.get_candlestick(symbol=sym, interval=itv, limit=lim, normalized=True)
-            else:
-                print("Invalid input! Start again.")
-                continue
-        elif itv in ["1m","3m","5m","10m","30m","60m","120m","240m"]:
-            #--- Get lim after 'if itv' ---
-            print("Candle Amount (<=1000):", end=" ")
-            lim = input().strip()
-            try:
-                if int(lim) > 1000 or int(lim) < 1:
-                    print("Input out of 1-1000! Start again.")
                     continue
-            except:
+                #------------------------------
+                print("Start-End Date? (y or n): ", end="")
+                isDate = input().strip()
+                if isDate == "y":
+                    #--- Start-End Date ---
+                    print("Start Date (DD/MM/YYYY): ", end="")
+                    sd = input().strip()
+                    try:
+                        sdS = sd.split("/")
+                        y = sdS[2]
+                        m = sdS[1]
+                        d = sdS[0]
+                        startD = f"{y}-{m}-{d}T00:00"
+                        print("End Date (DD/MM/YYYY): ", end="")
+                        ed = input().strip()
+                        edS = ed.split("/")
+                        y = edS[2]
+                        m = edS[1]
+                        d = edS[0]
+                        endD = f"{y}-{m}-{d}T23:59"
+                    except:
+                        print("Invalid input! Start again.")
+                        continue #Go back to while #X: break
+                    #----------------------
+                    res = market.get_candlestick(
+                    symbol=sym,
+                    interval=itv,   #1m, 3m, 5m, 10m, 15m, 30m, 60m, 120m, 240m, 1d, 1w, 1M
+                    limit=lim,      #Candle amount
+                    start= startD,  #Opt.- "YYYY-mm-ddTHH:MM"
+                    end= endD,      #Opt.- "YYYY-mm-ddTHH:MM"
+                                        #If no -> get the candles in the latest period
+                                        #If yes -> get the candles in that period
+                    normalized=True
+                    )
+                elif isDate == "n":            
+                    res = market.get_candlestick(symbol=sym, interval=itv, limit=lim, normalized=True)
+                else:
+                    print("Invalid input! Start again.")
+                    continue
+            elif itv in ["1m","3m","5m","10m","30m","60m","120m","240m"]:
+                #--- Get lim after 'if itv' ---
+                print("Candle Amount (<=1000):", end=" ")
+                lim = input().strip()
+                try:
+                    if int(lim) > 1000 or int(lim) < 1:
+                        print("Input out of 1-1000! Start again.")
+                        continue
+                except:
+                    print("Invalid input! Start again.")
+                    continue
+                #------------------------------
+                res = market.get_candlestick(symbol=sym, interval=itv, limit=lim, normalized=True)    
+            else:
                 print("Invalid input! Start again.")
-                continue
-            #------------------------------
-            res = market.get_candlestick(symbol=sym, interval=itv, limit=lim, normalized=True)    
-        else:
-            print("Invalid input! Start again.")
-            continue  
+                continue  
 
-        # Store in list
-        li_lastSequence = res["lastSequence"]
-        li_time = res["time"]
-        li_open = res["open"]
-        li_high = res["high"]
-        li_low = res["low"]
-        li_close = res["close"]
-        li_numPeriod = []
-        li_macd = []
-        li_signal = []
-        li_histogram = []
-        #--- up to each numPeriod ---
-        li_up_all = []          
-        li_down_all = []
-        li_sma_all = []
-        li_ema_all = []
-        li_rsi_all = []
-        #--- 2ND VIS ---
-        li_numPeriod_2 = []
-        li_volatility_all = []
-        li_np = []
+            # Store in list
+            li_lastSequence = res["lastSequence"]
+            li_time = res["time"]
+            li_open = res["open"]
+            li_high = res["high"]
+            li_low = res["low"]
+            li_close = res["close"]
+            li_numPeriod = []
+            li_macd = []
+            li_signal = []
+            li_histogram = []
+            #--- up to each numPeriod ---
+            li_up_all = []          
+            li_down_all = []
+            li_sma_all = []
+            li_ema_all = []
+            li_rsi_all = []
+            #--- 2ND VIS ---
+            li_np = []
+            li_numPeriod_2 = []
+            li_volatility_all = []
+            li_sharp_all = []
 
-        # Add 'numP' to 'li_numPeriod' for the indicators
-        while True:
-#            try:
-            print("SMA,EMA,Upper&Lower,RSI - NO.of Periods")
-            print("1 or Multi (e.g., 20 or 17,25): ", end="")
-            numPeriod_inputs = input().strip()
-            li_numPeriod = getLi_numPeriod(numPeriod_inputs, li_close)
+            # Add 'numP' to 'li_numPeriod' for the indicators
+            while True:
+                try:
+                    print("SMA,EMA,Upper&Lower,RSI - NO.of Periods")
+                    print("1 or Multi (e.g., 20 or 17,25): ", end="")
+                    numPeriod_inputs = input().strip()
+                    li_numPeriod = getLi_numPeriod(numPeriod_inputs, li_close)
 
-            print("Volatility - NO.of Periods (same format): ", end="")
-            numPeriod_2_inputs = input().strip()
-            li_numPeriod_2 = getLi_numPeriod(numPeriod_2_inputs, li_close)
+                    print("Volatility,Sharp Ratio - NO.of Periods (same format): ", end="")
+                    numPeriod_2_inputs = input().strip()
+                    li_numPeriod_2 = getLi_numPeriod(numPeriod_2_inputs, li_close)
+                    break
+                except:
+                    print("Invalid input! Try again.")
+
+            # Get all indicators for every <numP> in 'li_numPeriod' -in-> each indicator's 'li_<indicator>_all'
+            # 'li_<ind.>_all' keeps 'li_<ind.>_numP'no.1, no.2,...
+            # X [no need]: dict= {'numP': li_<ind.>_numP}
+            for numP in li_numPeriod:
+                if str(numP) != "": #"" != None | Handle "" in 'li_numPeriod' here before calling the funcs. below
+                  # --- Get all indicators for each <numP> ---
+                    # === list_all: SMA ===
+                    ## & like the rest: getSMAlist_numP(numP) -added to-> 'li_sma_numP' --> 1 col 'li_sma_numP' in csv
+                    li_sma_numP = getSMAlist_numP(numP, li_close)
+                    li_sma_all.append(li_sma_numP)
+
+                    # === list_all: EMA ===
+                    li_ema_numP = getEMAlist_numP(numP, li_close, False)
+                    li_ema_all.append(li_ema_numP)
+
+                    # === list_all: Upper & Lower Bands ===
+                    ## Upper
+                    li_up_numP = getBandList_numP("upper", numP, li_close, li_sma_numP)
+                    li_up_all.append(li_up_numP)
+                    ## Lower
+                    li_down_numP = getBandList_numP("lower", numP, li_close, li_sma_numP)
+                    li_down_all.append(li_down_numP)
+
+                    # === list_all: RSI ===
+                    li_rsi_numP = getRSIlist_numP(numP, li_close)
+                    li_rsi_all.append(li_rsi_numP)
+
+            # --- 2ND VIS ---
+            for numP in li_numPeriod_2:
+                if str(numP) != "":
+                 # --- Get all indicators for each <numP> ---
+                   # === list_all: Volatility ===
+                    li_volatility_numP = getVolatilityList(numP, li_close)
+                    li_volatility_all.append(li_volatility_numP)
+
+                   # === list_all: Sharp Ratio ===
+                    li_sharp_numP = getSharpList(numP, li_close, R_f)
+                    li_sharp_all.append(li_sharp_numP)
+
+        # +Other Indicators <<<<<<<<<<<<<<<<<<<<<<<<<<<
+        
+            #=== list: MACD ===
+            li_macd = getMACDlist(li_close)
+            #=== list: Signal ===
+            li_signal = getSignalList(li_macd)
+            #=== list: Histogram ===
+            li_histogram = getHistogramList(li_close, li_macd, li_signal)
+
+           #--- 2ND VIS ---
+            li_np = getNPlist(li_close)
+                
+            li_volume = res["volume"]
+            li_value = res["value"]
+
+            rndStr = str(rnd)
+
+          #===== Create .csv & print to it =====
+            csvHeader = ['li_time','li_open','li_high','li_low','li_close','li_volume', 'li_numPeriod', ## required !!
+                         'li_numPeriod_2', 'li_macd', 'li_signal', 'li_histogram', 'li_np']           
+            #--- Create headers based on 'li_numPeriod' ---
+            ## li_sma_numP
+            for numPeriod in li_numPeriod: #[int,..,""]
+                if str(numPeriod) != "":
+                    csvHeader.append(f'li_sma_{numPeriod}')
+            ## li_ema_numP
+            for numPeriod in li_numPeriod:
+                if str(numPeriod) != "":
+                    csvHeader.append(f'li_ema_{numPeriod}')
+            ## Upper: li_up_numP
+            for numPeriod in li_numPeriod:
+                if str(numPeriod) != "":
+                    csvHeader.append(f'li_up_{numPeriod}')
+            ## Lower: li_down_numP
+            for numPeriod in li_numPeriod:
+                if str(numPeriod) != "":
+                    csvHeader.append(f'li_down_{numPeriod}')
+            ## li_rsi_numP
+            for numPeriod in li_numPeriod:
+                if str(numPeriod) != "":
+                    csvHeader.append(f'li_rsi_{numPeriod}')
+
+            # --- 2ND VIS ---
+            ## li_volatility_numP
+            for numPeriod in li_numPeriod_2:
+                if str(numPeriod) != "":
+                    csvHeader.append(f'li_volatility_{numPeriod}')
+            ## li_sharp_numP
+            for numPeriod in li_numPeriod_2:
+                if str(numPeriod) != "":
+                    csvHeader.append(f'li_sharp_{numPeriod}')
+
+                            ##### PATH !!!
+            uniPath = f"C://Users//LENOVO//Desktop//thai_stock_expert//output//{rndStr}_{sym}.csv"
+            while True:
+                if os.path.isfile(uniPath):
+                    rnd += 1
+                    rndStr = str(rnd)   ##### PATH !!!
+                    uniPath = f"C://Users//LENOVO//Desktop//thai_stock_expert//output//{rndStr}_{sym}.csv" 
+                else:
+                    break
+            res_csvFile = uniPath
             
-            break
-#            except:
-#                print("Invalid input! Try again.")
-
-        # Get all indicators for every <numP> in 'li_numPeriod' -in-> each indicator's 'li_<indicator>_all'
-        # 'li_<ind.>_all' keeps 'li_<ind.>_numP'no.1, no.2,...
-        # X [no need]: dict= {'numP': li_<ind.>_numP}
-        for numP in li_numPeriod:
-            if str(numP) != "": #"" != None | Handle "" in 'li_numPeriod' here before calling the funcs. below
-              # --- Get all indicators for each <numP> ---
-                # === list_all: SMA ===
-                ## getSMAlist_numP(numP) -added to-> 'li_sma_numP' --> 1 col 'li_sma_numP' in csv
-                li_sma_numP = getSMAlist_numP(numP, li_close)
-                li_sma_all.append(li_sma_numP)
-
-                # === list_all: EMA ===
-                ## getEMAlist_numP(numP) -added to-> 'li_ema_numP' --> 1 col 'li_ema_numP' in csv
-                li_ema_numP = getEMAlist_numP(numP, li_close, False)
-                li_ema_all.append(li_ema_numP)
-
-                # === list_all: Upper & Lower Bands ===
-                ## Upper
-                li_up_numP = getBandList_numP("upper", numP, li_close, li_sma_numP)
-                li_up_all.append(li_up_numP)
-                ## Lower
-                li_down_numP = getBandList_numP("lower", numP, li_close, li_sma_numP)
-                li_down_all.append(li_down_numP)
-
-                # === list_all: RSI ===
-                li_rsi_numP = getRSIlist_numP(numP, li_close)
-                li_rsi_all.append(li_rsi_numP)
-
-        # --- 2ND VIS ---
-        for numP in li_numPeriod_2:
-            if str(numP) != "":
-             # --- Get all indicators for each <numP> ---
-               # === list_all: Volatility ===
-                li_volatility_numP = getVolatilityList(numP, li_close)
-                li_volatility_all.append(li_volatility_numP)
-
-    # +Other Indicators <<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-        #=== list: MACD ===
-        li_macd = getMACDlist(li_close)
-        #=== list: Signal ===
-        li_signal = getSignalList(li_macd)
-        #=== list: Histogram ===
-        li_histogram = getHistogramList(li_close, li_macd, li_signal)
-
-       #--- 2ND VIS ---
-        li_np = getNPlist(li_close)
-            
-        li_volume = res["volume"]
-        li_value = res["value"]
-
-        rndStr = str(rnd)
-
-      #===== Create .csv & print to it =====
-        csvHeader = ['li_time','li_open','li_high','li_low','li_close','li_volume', 'li_numPeriod', ## required !!
-                     'li_numPeriod_2', 'li_macd', 'li_signal', 'li_histogram', 'li_np']
-        #--- Create headers based on 'li_numPeriod' ---
-        ## li_sma_numP
-        for numPeriod in li_numPeriod: #[int,..,""]
-            if str(numPeriod) != "":
-                csvHeader.append(f'li_sma_{numPeriod}')
-        ## li_ema_numP
-        for numPeriod in li_numPeriod:
-            if str(numPeriod) != "":
-                csvHeader.append(f'li_ema_{numPeriod}')
-        ## Upper: li_up_numP
-        for numPeriod in li_numPeriod:
-            if str(numPeriod) != "":
-                csvHeader.append(f'li_up_{numPeriod}')
-        ## Lower: li_down_numP
-        for numPeriod in li_numPeriod:
-            if str(numPeriod) != "":
-                csvHeader.append(f'li_down_{numPeriod}')
-        ## li_rsi_numP
-        for numPeriod in li_numPeriod:
-            if str(numPeriod) != "":
-                csvHeader.append(f'li_rsi_{numPeriod}')
-
-        # --- 2ND VIS ---
-        ## li_volatility_numP
-        for numPeriod in li_numPeriod_2:
-            if str(numPeriod) != "":
-                csvHeader.append(f'li_volatility_{numPeriod}')
-
-                        ##### PATH !!!
-        uniPath = f"C://Users//LENOVO//Desktop//thai_stock_expert//output//{rndStr}_{sym}.csv"
-        while True:
-            if os.path.isfile(uniPath):
-                rnd += 1
-                rndStr = str(rnd)   ##### PATH !!!
-                uniPath = f"C://Users//LENOVO//Desktop//thai_stock_expert//output//{rndStr}_{sym}.csv" 
-            else:
-                break
-        res_csvFile = uniPath
-
-      # [Optimized] : from O((i*j)*5) to O(i*j)
-        li_indiRow = [ [li[i] for li in
-                          #3. Get li[0] = [sma_14_0, sma_20_0,..,rsi_20_0] which is indiRow 1
-                          #      ,li[1] = [sma_14_1, sma_20_1,..,rsi_20_1] which is indiRow 2
-                          #      ,...   
-                       li_sma_all + li_ema_all + li_up_all + li_down_all + li_rsi_all + li_volatility_all]
-                          #2. Concat.(+), the result is
-                            #[
-                            #  [sma_14_0, sma_14_1, ..., sma_14_n],
-                            #  [sma_20_0, sma_20_1, ..., sma_20_n],
-                            #  ...
-                            #  [rsi_20_0, rsi_20_1, ..., rsi_20_n]
-                            #]
-            for i in range(len(li_close)) #1. 1st loop
-                     ]
-
-        with open(res_csvFile, "w", newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(csvHeader) #X writerows
-
-            for i, indiVals in enumerate(li_indiRow): #'enu.' returns idx(-> i) & val(-> indiVals) in the loop
-                # Convert timestamp
-                timestamp = li_time[i]                  #Unix timestamp -> local time
-                dt = datetime.fromtimestamp(timestamp)  #e.g. 2025-03-25 00:00:00 is OK                               
-                dateTime = str(dt)
-                # 1. csvRow <-added- fixed values       #float/str() = no diff.                        
-                csvRow = [
-                    dateTime, li_open[i], li_high[i], li_low[i], li_close[i], li_volume[i],
-                    li_numPeriod[i], li_numPeriod_2[i], li_macd[i], li_signal[i], li_histogram[i],
-                    li_np[i]
+          # [Optimized] From O((i*j)*5) to O(i*j)
+            li_indiRow = [ [li[i] for li in
+                              #3. Get li[0] = [sma_14_0, sma_20_0,..,rsi_20_0] which is indiRow 1
+                              #      ,li[1] = [sma_14_1, sma_20_1,..,rsi_20_1] which is indiRow 2
+                              #      ,...   
+                           li_sma_all + li_ema_all + li_up_all + li_down_all + li_rsi_all + li_volatility_all
+                           + li_sharp_all]
+                              #2. Concat.(+), the result is
+                                #[
+                                #  [sma_14_0, sma_14_1, ..., sma_14_n],
+                                #  [sma_20_0, sma_20_1, ..., sma_20_n],
+                                #  ...
+                                #  [vola._30_0, vola._30_1, ..., vola._30_n]
+                                #]
+                for i in range(len(li_close)) #1. 1st loop
                          ]
-                # 2. csvRow <-extend csvRow for adding- based-on-'li_numPeriod' values
-                csvRow.extend(indiVals)
-                # 3. Write csvRow in the csv file
-                writer.writerow(csvRow)
+            with open(res_csvFile, "w", newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow(csvHeader) #X writerows
 
-        # Display the retrieved data
-            #print("close: ", li_close)
+                for i, indiVals in enumerate(li_indiRow): #'enu.' returns idx(-> i) & val(-> indiVals) in the loop
+                    # Convert timestamp
+                    timestamp = li_time[i]                   #Unix timestamp -> local time
+                    dt = datetime.fromtimestamp(timestamp)   #e.g. 2025-03-25 00:00:00 is OK
+                    dateTime = str(dt)
+                    # 1. csvRow <-added- fixed values        #float/str() = no diff.                              
+                    csvRow = [
+                        dateTime, li_open[i], li_high[i], li_low[i], li_close[i], li_volume[i],
+                        li_numPeriod[i], li_numPeriod_2[i], li_macd[i], li_signal[i], li_histogram[i],
+                        li_np[i]
+                             ]
+                    # 2. csvRow <-extend csvRow for adding- based-on-'li_numPeriod' values
+                    csvRow.extend(indiVals)
+                    # 3. Write csvRow in the csv file
+                    writer.writerow(csvRow)
 
-        # Store the stock-name history
-        stockNames.append(f"{rndStr}_{sym}")
+            # Display the retrieved data
+                #print("close: ", li_close)
 
-        # Start again
-        while True:
-            print("Get more? (y or n): ", end="")
-            again = input().strip()
-            if again == "y":
-                isAgain = True 
-                rnd += 1
-                print("------------------------------------")
-                break # Continue to get more
-            elif again == "n":
-                isAgain = False
-                break
-            else:
-                print("Invalid input! Try again.")
+            # Store the stock-name history
+            stockNames.append(f"{rndStr}_{sym}")
+
+            # Start again
+            while True:
+                print("Get more? (y or n): ", end="")
+                again = input().strip()
+                if again == "y":
+                    isAgain = True 
+                    rnd += 1
+                    print("------------------------------------")
+                    break # Continue to get more
+                elif again == "n":
+                    isAgain = False
+                    break
+                else:
+                    print("Invalid input! Try again.")
             
-#        except:
-#            print("Something wrong, check the source code!")
-#            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        except:
+            print("Something wrong, check the source code!")
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            continue
 
     # End of getting the data
     print("================================")
