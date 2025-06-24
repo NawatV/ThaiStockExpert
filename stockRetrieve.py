@@ -17,10 +17,10 @@ import stockScraper as stScr
 #           def getRSDfn_list() | Show indicators w/ numP
 #           ** Multi-numPs & bugs fixed | +MACD,Signal,His | +Opti.del func.('rnd_fileNameWOtype')
 #           | +Exit opt. | Check isUniPath before saving .csv | Optimized the code | +multi-Volatility | +NP
-#           | +input.strip() || +sharp ratio | +call func.in stScr | +continue-> big try-except (compre.)
-#           | 1 web scr/act opening
+#           | +input.strip() || +sharp ratio | +call func.in stScr | 
+#           | 1 web scr/act opening || +Warning 'SET's API'
 #
-#            try-except =================
+#            Big try-except (compre.) =================
 
 
 # #-#-#-#-# Getting & Storing Part #-#-#-#-# 
@@ -266,7 +266,7 @@ def delRSDpath():
         RSDpath_dic[fileNameWOtype] = RSDpath
     while True:
         print("Delete all? (y, n, or Exit (exit)): ", end="")
-        delAll = input().strip() #Remove space
+        delAll = input().strip().lower() #Remove space
         if delAll == "y":
             for pathKey in RSDpath_dic: #X: .keys()
                 os.remove(RSDpath_dic[pathKey])
@@ -274,7 +274,7 @@ def delRSDpath():
             print("Type the chosen one(s)")
             print("i.e., <round>_<stock name> or <r>_<sn>, <r>_<sn>,..: ", end="")   
             #--- Invalid input here is OK ---
-            delFnWOtype_inputs = input().strip()
+            delFnWOtype_inputs = input().strip().lower()
             if "," in delFnWOtype_inputs:
                 li_delFnWOtype = [s for s in delFnWOtype_inputs.split(",")] #X:'for' in 'for' (O(n^2))
                 for key in li_delFnWOtype: #O(n) - for in list
@@ -321,6 +321,8 @@ def getStockData():
     # Initialize an Investor object with your credentials
     investor = Investor(app_id="", app_secret="",
                         broker_id="SANDBOX", app_code="SANDBOX", is_auto_queue = False)
+        #old & same result: app_id=""
+        #old & same result: app_secret=""
     # Access the market data
     market = investor.MarketData()
 
@@ -331,7 +333,8 @@ def getStockData():
         try:
             rnd = 1
             # Get candle stick | *** Latest data = 3 working days before | Unavai.'15m'
-            print("!! Beware of error due to improper input !!")
+            print("//// SET's API hasn't returned up-to-date data for a while & sometimes it's unreliable ////")
+            print("//// Please beware of the last dataRow, remove it if incontinuous and/or inaccurate ////")
             print("Stock Name (Case-Insen) OR Exit (exit):", end=" ")
             sym = input()
             sym = sym.strip().lower()

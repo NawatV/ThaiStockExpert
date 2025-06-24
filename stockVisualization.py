@@ -16,10 +16,10 @@ import sys
 #           +Hovermode | +Overbought/sold | +numPeriod after indicator's name |
 #           ** Multi-numPs & bugs fixed | Customized the data layout
 #           | +Exit opt. | Optimized the code | VIS2 | Cus.the data layout
-#           | +input.strip() || Cus.the data layout & layout | +sharp perf.'s colors
-#           | +continue-> big try-except (compre.) | Modified 'ranColHex'
+#           | +input.strip() |Cus.the data layout & layout | +sharp perf.'s colors
+#           | Modified 'ranColHex' || VIS 3 | Added dots to graph
 #
-#           try-except =================
+#           Big try-except (compre.) =================
 
 
 # #-#-#-#-# Visualization Part #-#-#-#-#
@@ -43,7 +43,7 @@ def ranColHex(li_rgb_history):
         #format: x=lowercase | 02=zero-padded to 2 digits (e.g., 7->07, 15->0f) | e.g., return "#1a2b3c"
 
 def getCandyStick(rnd_stockName):
-    csvFileName = rnd_stockName.lower()                 #->lower for csv file's name
+    csvFileName = rnd_stockName
     # Read csv      ##### PATH !!!
     csvPath = f"C://Users//LENOVO//Desktop//thai_stock_expert//output//{csvFileName}.csv"   
     csvOP = pd.read_csv(csvPath, keep_default_na=False) ## Change from nan (not a no.) to ""
@@ -206,7 +206,7 @@ def getCandyStick(rnd_stockName):
         yaxis6= dict( title=dict (text="Histogram"),  #Line break here
                       title_font= dict(size=10, color="black"),
                       domain=[0, 0.09],
-                      zeroline=True,        #Ensures histogram expands from 0
+                      zeroline=True,        #To ensure the histogram expands from 0
                       zerolinewidth=1,
                       zerolinecolor="grey",
                       range=None
@@ -253,7 +253,7 @@ def compareStock(rnd_stockName_inputs):
 
     # Loop for each stock
     for cin in li_compareInputs:
-        csvFileName = cin.lower()
+        csvFileName = cin
         # Read csv      ##### PATH !!!
         csvPath = f"C://Users//LENOVO//Desktop//thai_stock_expert//output//{csvFileName}.csv"   
         csvOP = pd.read_csv(csvPath, keep_default_na=False) ## Change from nan (not a no.) to ""
@@ -377,7 +377,77 @@ def compareStock(rnd_stockName_inputs):
     #--- Red ---
     fig.add_hrect(y0=y0, y1=0, line_width=0, fillcolor="red", opacity=0.2, row=4, col=1)
     
-    fig.show()    
+    fig.show()
+#--------------------------------------------------------------
+
+#--- 3RD VIS ---
+def getPredictedPriceTrend(stName, dt_actual, dt_pred, y_vals_actual_in, y_pred_vals_in): #<<<<<
+    #type(dt_actual)='pandas..Series'(1D array): a col sliced from a DataFrame 'data'
+        #= data['li_time'].iloc[slice_at : stop_before]
+    #type(dt_pred)='pandas..DatetimeIndex': a pandas obj for time-based indexing for x-axis val in Plotly/Matplotlib
+        #= pd.date_range(start=.., periods=.., freq=..)
+    #type(y_vals_actual_in)='numpy.ndarray': a NumPy array containing actual price values (after inverse transform)
+        #= scaler.inverse_transform(x)[:, cols_to_use.index('li_close')] //x's shape is 2D= (729-1-100, 5) 
+    #type(y_pred_vals_in)='numpy.ndarray': 'same as above'
+
+    
+    # Create a layout grid of plots (subplots); 1 row 1 col
+    fig = make_subplots(shared_xaxes= True, #Solved: trade-off (-)date (+)vol.movable
+                        vertical_spacing= 0.001,
+                        row_width=[1], #View: down->up
+                        rows= 1, cols= 1)    
+
+    # 1st row: Add trace 1 to row[0]col[0] | Add details on the layout
+    fig.add_trace(pgo.Scatter(x= dt_actual,  #<- .iloc[i] -> type='str'
+                              y= y_vals_actual_in, mode="lines+markers", name= f"{stName} - Actual",
+                    line= dict(color="black"), #X: width=2
+                    marker= dict(size=4, color="black", opacity=1, line= dict(width=0.025, color="black"))),
+                    row=1, col=1)
+
+    # 1st row: Add trace 2 to row[0]col[0] | Add details on the layout
+    fig.add_trace(pgo.Scatter(x= dt_pred,   
+                              y= y_pred_vals_in, mode="lines+markers", name= f"{stName} - Predicted Trend",
+                    line=dict(color="blue"),
+                    marker= dict(size=4, color="blue", opacity=1, line= dict(width=0.025, color="blue"))),
+                    row=1, col=1)
+
+    #---------- Former manipulation -------------------------
+    #fig.add_trace(pgo.Scatter(x= dt_actual,
+    #                          y= y_vals_actual_in, mode="lines", name= f"{stName} - Actual",
+    #              marker= dict(color="black", line= dict(width=0.025))), row=1, col=1 )
+    #X: fig.add_vline(..)
+    #--------------------------------------------------------
+ 
+    # Get 'title' 
+    title = f"Predict Stock Price Trend: {stName}"
+
+
+    # Update layout
+    #--- Axis-X & Y ---    
+    fig.update_layout(title= title,
+        hovermode="x unified",              #= vertical line + unified tooltip
+        xaxis= dict(title="",
+                    title_font= dict(size=12, color="black"),
+                    #tickformat= ".2f",
+                    showgrid=True,
+                    gridcolor="lightgray",
+                    rangeslider=dict(
+                        visible= True,
+                        thickness= 0.06     ## key
+                        ),
+                    type="date"             #Needed for date-based sliders
+                    ),
+                      
+        ### (1st y-axis) 
+        yaxis= dict(title= f"Price",
+                    title_font= dict(size=12, color="black"),
+                    #dtick="..",            ##Plot dots in line graph
+                    tickformat= ".2f",      #Limit to 2 decimal places
+                    #domain=[0.48, 1]        #[gap below, total height] 
+                    ),                     
+        )
+
+    fig.show()
 #--------------------------------------------------------------
 
 
@@ -389,7 +459,7 @@ def visualize(visType): #### Make sure the imported .py's path = this .py's path
             print("!! Accuracy depends on the retrieved data !!")
             if visType == "3":
                 print("Type 1 <round>_<stock> or Exit (exit): ", end="")
-                rnd_stockName = input().strip()
+                rnd_stockName = input().strip().lower() #strip & lower before passing this param
                 #--- Exit before ---
                 if rnd_stockName == "exit": return
                 # Visualize: Candlestick
@@ -397,14 +467,18 @@ def visualize(visType): #### Make sure the imported .py's path = this .py's path
             elif visType == "4":
                 print("Type >=1 <round>_<stock> or Exit (exit)")
                 print("1 or Multi(e.g., <r1>_<s1>, <r1>_<s2>): ", end="")
-                rnd_stockName_inputs = input().strip()
+                rnd_stockName_inputs = input().strip().lower()
                 #--- Exit before ---
                 if rnd_stockName_inputs == "exit": return
                 # Compare stock data
                 compareStock(rnd_stockName_inputs)
-
-            print("Do more? (y or n): ", end="")
-            again = input().strip()
+            #elif visType == "5":
+                #--- Exit before: in stockLSTM.py ---
+                # Visualize: PredictedPriceTrend
+                #--- getPredictedPriceTrend(..): in stockLSTM.py ---
+                
+            print("Visualize more? (y or n): ", end="")
+            again = input().strip().lower()
             if again == "y":
                 isAgain = True
                 print("------------------------------------")
@@ -412,10 +486,11 @@ def visualize(visType): #### Make sure the imported .py's path = this .py's path
                 isAgain = False
                 print("====================================")
             else:
-                print("Invalid input! Try again.")
+                print("Invalid input! Please try again.")
                 
         except:
-            print("Invalid stock name OR something wrong!")
+            print("Invalid stock name OR something wrong,")
+            print("please check 'stockVisualization.py'")
             continue
 
 # ================= END OF PROGRAM =================
