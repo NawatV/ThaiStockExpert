@@ -10,6 +10,10 @@
 --- PREREQUISITE: - Register on https://developer.settrade.com/open-api/
 ---                           - Added your own 'app_id' & 'app_secret' below. 
 
+# stockLSTM.py
+//// The market is influenced by several factors
+        So you will get probabilities, not certainties as the results ////
+
 # stockScraper.py
 --- PREREQUISITE: - Download a Chrome WebDriver compatible with its version on
 ---                   	      https://developer.chrome.com/docs/chromedriver/downloads (if 'warning' > 'Chrome for Testing avai.dashboard')

@@ -17,13 +17,18 @@ import sys
 #           ** Multi-numPs & bugs fixed | Customized the data layout
 #           | +Exit opt. | Optimized the code | VIS2 | Cus.the data layout
 #           | +input.strip() |Cus.the data layout & layout | +sharp perf.'s colors
-#           | Modified 'ranColHex' || VIS 3 | Added dots to graph
+#           | Modified 'ranColHex' || VIS 3 | Added dots to graph || Fixed dataRow bug
 #
 #           Big try-except (compre.) =================
 
 
 # #-#-#-#-# Visualization Part #-#-#-#-#
 #SEE func.visualize() BELOW FIRST
+
+## csvOP: a Pandas DF (2D table)
+#  csvOP.shape= (rows, cols)
+#  csvOP["colName"] = that entire col | csvOP.iloc[0] = the entire row 1
+#       csvOP.at[5,"li_close"] = Closing price at row 6
 
 li_rgb_history = [] #Cleared when start a new vis.
 
@@ -47,6 +52,17 @@ def getCandyStick(rnd_stockName):
     # Read csv      ##### PATH !!!
     csvPath = f"C://Users//LENOVO//Desktop//thai_stock_expert//output//{csvFileName}.csv"   
     csvOP = pd.read_csv(csvPath, keep_default_na=False) ## Change from nan (not a no.) to ""
+
+    ###---- Bug fixed: ambiguous date formats by inferring & standardizing ----
+    csvOP["li_time"] = pd.to_datetime(csvOP["li_time"], errors="coerce")
+    #--- Drop rows with invalid or missing dates ---
+    csvOP = csvOP[csvOP["li_time"].notna()]
+
+    # Remove any row entirely empty/ only ""
+        #csvOP.dropna(how='all', inplace=True) 
+        #csvOP = csvOP[ csvOP["li_time"].str.strip() != "" ]
+        #csvOP = csvOP[~(csvOP == "").all(axis=1)]
+    
     #--- Get all the csv headers ---
     csvHeaders = list(csvOP.columns)                    #-> ["li_date", "li_open",..]
     #=== To_numeric ### Solved a big confusion by lib.Pandas | ## to 'X.0' ===
@@ -257,6 +273,12 @@ def compareStock(rnd_stockName_inputs):
         # Read csv      ##### PATH !!!
         csvPath = f"C://Users//LENOVO//Desktop//thai_stock_expert//output//{csvFileName}.csv"   
         csvOP = pd.read_csv(csvPath, keep_default_na=False) ## Change from nan (not a no.) to ""
+
+        ###---- Bug fixed: ambiguous date formats by inferring & standardizing ----
+        csvOP["li_time"] = pd.to_datetime(csvOP["li_time"], errors="coerce")
+        #--- Drop rows with invalid or missing dates ---
+        csvOP = csvOP[csvOP["li_time"].notna()]
+
         #--- Get all the csv headers ---
         csvHeaders = list(csvOP.columns)                    #-> ["li_date", "li_open",..]
         #=== To_numeric ### Solved a big confusion by lib.Pandas | ## to 'X.0' ===
