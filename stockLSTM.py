@@ -32,8 +32,8 @@ def runLSTM():
     isAgain = True
     while isAgain == True:
 #        try:
-        print("//// The market is influenced by several factors")
-        print("     So you will get probabilities, not certainties as the results ////")
+        print("//// The market is influenced by several factors.")
+        print("     So you will get probabilities, not certainties as the results. ////")
         print("**** Based on testings & all the conditions,")
         print("     'no.of days to be used' should= 360 or 100 & 'no.of days to be predicted' should= 90 or 25 respectively [or at least 4/1].")
         print("     (The details will be displayed later) ****")        
@@ -147,7 +147,7 @@ def runLSTM():
         #**8.Dropout 0.0 helps
         #xx9.biL(100)-biL(100)-biL(100)-Lstm(200)-dense(1)
         #xx10.dense during the journey
-        #////// Already saved all the results' pics named <testDescription>.png & noted 'know-how' //////   
+        #////// Already saved all the results' pics named <testDescription>.png & noted 'know-how' //////  
         
         # 1st LSTM layer with dropout
         #lstm_model.add(Bidirectional(LSTM(100, return_sequences=True), input_shape=(window_size, 5)))
@@ -196,15 +196,20 @@ def runLSTM():
 
         # Train it
         print("////////// Training the model, please wait. ////////////////")
-        #X: Early Stopping | save->load_model() |
+        #X: Early Stopping | save->load_model() | 
         
-        lstm_model.fit(X_train, y_train, epochs=30, batch_size=24, verbose=0, shuffle=False) 
+        lstm_model.fit(X_train, y_train, epochs=30, batch_size=24, verbose=0, shuffle=False)
             #y_train: e.g., next closing price after each sequence
-            #epochs: The model iterates over the entire dataset 30 times -> learn better but too much=overfitting
-            #batch_size: The model processes the data in mini-batches of 24 samples
-                #Each weight update is done after processing one batch.
-                #lower val= more updates -> learn better | higher val= faster training but might skip nuances
+            #epochs=30 : The model iterates over the entire dataset 30 times -> learn better but too much=overfitting
+            #       an epoch contains <?> batches
+            #batch_size=n : The model processes 'n samples (data points) at once' ('..' = a batch)
+            #       before the model's weights are updated based on the avg loss across the entire batch
+            #       (accum. gradients from the entire batch for the LSTM case) calculated for those samples
+            #  So <?> = total samples (data points) / batch_size
+            #  n: less= handling 'unseen' better & slower convergence | more= 'opposite'
             #verbose: controls the output display > 1: Progress bar | 0: Show nothing
+
+            # ****** > Obsidian ******  
 
             #Output E.g.:
                 #Epoch 1/30

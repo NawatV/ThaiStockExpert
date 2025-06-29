@@ -26,8 +26,7 @@ while True:
     elif action == "2":
         print("------------------------------------")
         RSDfn_list = stRet.getRSDpath_list("view")  #stockRetrieve.py
-        for fn in RSDfn_list:
-            print("----> ", fn)
+        stRet.printStockNames(RSDfn_list)           #stockRetrieve.py
     elif action == "3":
         print("---- Restart the program if it takes too long ----")
         stVis.visualize("3") #stockVisualization.py | from .csv only

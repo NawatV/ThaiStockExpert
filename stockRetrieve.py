@@ -17,8 +17,8 @@ import stockScraper as stScr
 #           def getRSDfn_list() | Show indicators w/ numP
 #           ** Multi-numPs & bugs fixed | +MACD,Signal,His | +Opti.del func.('rnd_fileNameWOtype')
 #           | +Exit opt. | Check isUniPath before saving .csv | Optimized the code | +multi-Volatility | +NP
-#           | +input.strip() || +sharp ratio | +call func.in stScr | 
-#           | 1 web scr/act opening || +Warning 'SET's API'
+#           | +input.strip() | +sharp ratio | +call func.in stScr |  
+#           | 1 web scr/act opening || +Warning 'SET's API' | Fixed 'valEr: 1' at stVis 
 #
 #            Big try-except (compre.) =================
 
@@ -117,7 +117,7 @@ def getBandList_numP(pos, numP, li_close, li_sma_numP):
     return li_pos_numP
 
 # --- list_numP: RSI =100−(100/(1+RS)) ---
-def getRSIlist_numP(numP, li_close): #if 14-day RSI -> numP=14, starts at day 15
+def getRSIlist_numP(numP, li_close): #if 14-day RSI -> numP=14, it starts at day 15
     li_rsi_numP = []
     for i in range(len(li_close)):
         if i >= numP:
@@ -245,18 +245,19 @@ def getRSDpath_list(purpose): ##### PATH !!!
             for fileName in os.listdir(RSD_dir)
             if os.path.isfile(os.path.join(RSD_dir, fileName))
                      ]
-        return RSDfn_list   #Will get only "<RSD file name>.<file type>"
+        return RSDfn_list   #Get only "<RSD file name>.<file type>"
     elif purpose == "del":
         RSDpath_list = [
             os.path.join(RSD_dir, fileName)
             for fileName in os.listdir(RSD_dir)
             if os.path.isfile(os.path.join(RSD_dir, fileName))
                      ]        
-        return RSDpath_list #Will get "RSD's full path"
+        return RSDpath_list #Get "RSD's full path"
     else:
         print("Something wrong while 'getRSDpath_list' is being processed !!")
 
 def delRSDpath():
+    delStocks = []
     RSDpath_list = getRSDpath_list("del")
     # Optimize using dict
     RSDpath_dic = {}
@@ -266,31 +267,37 @@ def delRSDpath():
         RSDpath_dic[fileNameWOtype] = RSDpath
     while True:
         print("Delete all? (y, n, or Exit (exit)): ", end="")
-        delAll = input().strip().lower() #Remove space
+        delAll = input().strip().lower() #Remove space & lower before
         if delAll == "y":
-            for pathKey in RSDpath_dic: #X: .keys()
+            for pathKey in RSDpath_dic: #pathKey = key | X: .keys()
                 os.remove(RSDpath_dic[pathKey])
+                delStocks.append(pathKey)
+            printStockNames(delStocks)
         elif delAll == "n":
             print("Type the chosen one(s)")
             print("i.e., <round>_<stock name> or <r>_<sn>, <r>_<sn>,..: ", end="")   
             #--- Invalid input here is OK ---
             delFnWOtype_inputs = input().strip().lower()
             if "," in delFnWOtype_inputs:
-                li_delFnWOtype = [s for s in delFnWOtype_inputs.split(",")] #X:'for' in 'for' (O(n^2))
+                li_delFnWOtype = [s.strip() for s in delFnWOtype_inputs.split(",")] #X:'for' in 'for' (O(n^2))
                 for key in li_delFnWOtype: #O(n) - for in list
                     if key in RSDpath_dic: #O(1) - search in dict
                         os.remove(RSDpath_dic[key])
+                        delStocks.append(key)
             else:
                 key = delFnWOtype_inputs 
                 if key in RSDpath_dic:     #O(1) - search in dict 
                     os.remove(RSDpath_dic[key])
+                    delStocks.append(key)
+
+            printStockNames(delStocks)
+            
         elif delAll == "exit":
             return
         else:
-            print("Invalid input! Try again.")
+            print("Invalid input! Please try again.")
             print("------------------------------------")
             continue
-        print("Successfully deleted as requested.")
         break
 
 def getLi_numPeriod(numPeriod_inputs, li_close):
@@ -300,14 +307,21 @@ def getLi_numPeriod(numPeriod_inputs, li_close):
         li_numPeriod = [int(numP.strip()) #A concise & eff.way to create a new list
                         for numP in numPeriod_inputs.split(",") if numP.strip()]
         #--- Fill the rest with "" ---
-        li_numPeriod += [""] * (len(li_close) - len(li_numPeriod)) ## required !! | Better mem.allo.eff. 
+        li_numPeriod += [""] * (len(li_close) - len(li_numPeriod)) ## Required !! | Better mem.allo.eff. 
     else:
         #--- Only 1 value in 'li_numPeriod' ---
         numP = int(numPeriod_inputs.strip())
         li_numPeriod.append(numP)
         #--- Fill the rest with "" ---
-        li_numPeriod += [""] * (len(li_close) - len(li_numPeriod)) ## required !!
+        li_numPeriod += [""] * (len(li_close) - len(li_numPeriod)) ## Required !!
     return li_numPeriod
+
+def printStockNames(li_stockName):
+    print("================================")
+    print("Here are the touched <round>_<stock name>(s): ")
+    for stockName in li_stockName:
+        print("----> ", stockName)
+    print("================================")
 #-------------------------------------------------------------
 
 
@@ -321,8 +335,8 @@ def getStockData():
     # Initialize an Investor object with your credentials
     investor = Investor(app_id="", app_secret="",
                         broker_id="SANDBOX", app_code="SANDBOX", is_auto_queue = False)
-        #old & same result: app_id=""
-        #old & same result: app_secret=""
+        #old & same result: app_id="Z0QNucel4MEuGSq8"
+        #old & same result: app_secret="e9UpfLM0EyaWvAko8qEr7a7todBgPIEown+S22da/VY="
     # Access the market data
     market = investor.MarketData()
 
@@ -333,27 +347,30 @@ def getStockData():
         try:
             rnd = 1
             # Get candle stick | *** Latest data = 3 working days before | Unavai.'15m'
-            print("//// SET's API hasn't returned up-to-date data for a while & sometimes it's unreliable ////")
+            print("//// SET's API doesn't always return up-to-date data & it's occasionally inaccessible ////")
+            print("     The amount of the data rows it provides has been occasionally changable ////")
             print("//// Please beware of the last dataRow, remove it if incontinuous and/or inaccurate ////")
             print("Stock Name (Case-Insen) OR Exit (exit):", end=" ")
             sym = input()
             sym = sym.strip().lower()
             #--- Exit before ---
-            if sym == "exit": return
+            if sym == "exit":
+                printStockNames(stockNames)
+                return
             
             print("Interval -1d(daily), 1w(weekly), 1M(monthly),")  # Internal's description
             print("1,3,5,10,30,60,120,240m (per..minute(s)): ", end="") # Unavai. to 'Start-End'
             itv = input().strip()
             if itv in ["1d","1w","1M"]:
                 #--- Get lim after 'if itv' ---
-                print("Candle Amount (<=1000):", end=" ")
+                print("Candle Amount (>=3 & <=1000):", end=" ")
                 lim = input().strip()
                 try:
-                    if int(lim) > 1000 or int(lim) < 1:
-                        print("Input out of 1-1000! Start again.")
+                    if int(lim) > 1000 or int(lim) < 3:
+                        print("Input out of 3-1000! Please try again.")
                         continue #Go back to while #X: break
                 except:
-                    print("Invalid input! Start again.")
+                    print("Invalid input! Please try again.")
                     continue
                 #------------------------------
                 print("Start-End Date? (y or n): ", end="")
@@ -376,7 +393,7 @@ def getStockData():
                         d = edS[0]
                         endD = f"{y}-{m}-{d}T23:59"
                     except:
-                        print("Invalid input! Start again.")
+                        print("Invalid input! Please try again.")
                         continue #Go back to while #X: break
                     #----------------------
                     res = market.get_candlestick(
@@ -403,12 +420,12 @@ def getStockData():
                         print("Input out of 1-1000! Start again.")
                         continue
                 except:
-                    print("Invalid input! Start again.")
+                    print("Invalid input! Please try again.")
                     continue
                 #------------------------------
                 res = market.get_candlestick(symbol=sym, interval=itv, limit=lim, normalized=True)    
             else:
-                print("Invalid input! Start again.")
+                print("Invalid input! Please try again.")
                 continue  
 
             # Store in list
@@ -447,7 +464,7 @@ def getStockData():
                     li_numPeriod_2 = getLi_numPeriod(numPeriod_2_inputs, li_close)
                     break
                 except:
-                    print("Invalid input! Try again.")
+                    print("Invalid input! Please try again.")
 
             # Get all indicators for every <numP> in 'li_numPeriod' -in-> each indicator's 'li_<indicator>_all'
             # 'li_<ind.>_all' keeps 'li_<ind.>_numP'no.1, no.2,...
@@ -488,7 +505,7 @@ def getStockData():
                     li_sharp_numP = getSharpList(numP, li_close, R_f)
                     li_sharp_all.append(li_sharp_numP)
 
-        # +Other Indicators <<<<<<<<<<<<<<<<<<<<<<<<<<<
+        # +other indicators <<<<<<<<<<<<<<<<<<<<<<<<<<<
         
             #=== list: MACD ===
             li_macd = getMACDlist(li_close)
@@ -506,7 +523,7 @@ def getStockData():
             rndStr = str(rnd)
 
           #===== Create .csv & print to it =====
-            csvHeader = ['li_time','li_open','li_high','li_low','li_close','li_volume', 'li_numPeriod', ## required !!
+            csvHeader = ['li_time','li_open','li_high','li_low','li_close','li_volume', 'li_numPeriod', ## Required !!
                          'li_numPeriod_2', 'li_macd', 'li_signal', 'li_histogram', 'li_np']           
             #--- Create headers based on 'li_numPeriod' ---
             ## li_sma_numP
@@ -596,7 +613,7 @@ def getStockData():
             # Start again
             while True:
                 print("Get more? (y or n): ", end="")
-                again = input().strip()
+                again = input().strip().lower()
                 if again == "y":
                     isAgain = True 
                     rnd += 1
@@ -606,19 +623,15 @@ def getStockData():
                     isAgain = False
                     break
                 else:
-                    print("Invalid input! Try again.")
+                    print("Invalid input! Please try again.")
             
         except:
-            print("Something wrong, check the source code!")
+            print("Something wrong, please check 'stockRetrieve.py'")
             print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             continue
 
     # End of getting the data
-    print("================================")
-    print("Here are the stocks & rounds: ")
-    for i in stockNames:
-        print("----> ", i)
-    print("================================")
+    printStockNames(stockNames)
             
 # ================= END OF PROGRAM =================
 """ out (dictionary (API response))
