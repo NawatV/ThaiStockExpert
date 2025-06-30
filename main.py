@@ -16,12 +16,12 @@ while True:
     print("-> Visualize: Candlestick - 3")
     print("-> Compare stock data - 4")
     print("-> Predict (+visualize) stock price trend - 5")
-    print("-> Delete stock data - 6")
+    print("-> Delete stock data permanently - 6")
     print("-> Exit - 7")
     print("Choose your actions (no.): ", end="")
     action = input().strip() #Remove space
     if action == "1":
-        print("------------------------------------")
+        print("---- Internet connection required ----")
         stRet.getStockData() #stockRetrieve.py
     elif action == "2":
         print("------------------------------------")

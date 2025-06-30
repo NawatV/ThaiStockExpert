@@ -9,7 +9,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 # Use pathlib to work with paths (optional)
 from pathlib import Path
 
-# ===== Scrape %_ann_R_f data || Big try-except (compre.) ===========
+# ===== Scrape %_ann_R_f data | Big try-except (compre.) ===========
 
 
 def scrape_percent_ann_R_f(type):

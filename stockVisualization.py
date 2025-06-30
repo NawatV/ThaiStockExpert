@@ -17,7 +17,7 @@ import sys
 #           ** Multi-numPs & bugs fixed | Customized the data layout
 #           | +Exit opt. | Optimized the code | VIS2 | Cus.the data layout
 #           | +input.strip() |Cus.the data layout & layout | +sharp perf.'s colors
-#           | Modified 'ranColHex' || VIS 3 | Added dots to graph || Fixed dataRow bug
+#           | Modified 'ranColHex' | VIS 3 | Added dots to graph | Fixed dataRow bug
 #
 #           Big try-except (compre.) =================
 
@@ -487,6 +487,7 @@ def visualize(visType): #### Make sure the imported .py's path = this .py's path
                 # Visualize: Candlestick
                 getCandyStick(rnd_stockName)
             elif visType == "4":
+                print("!!! Please do not compare using different intervals and/or others !!!")
                 print("Type >=1 <round>_<stock> or Exit (exit)")
                 print("1 or Multi(e.g., <r1>_<s1>, <r1>_<s2>): ", end="")
                 rnd_stockName_inputs = input().strip().lower()

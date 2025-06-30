@@ -14,7 +14,7 @@ import stockRetrieve as stRet
 import stockVisualization as stVis
 
 #======= Optimizing attempt (= 100->25 days, _cutLatest.csv) |
-#        LSTM:P&P using 5 col.s ('li_open',..,'li_vol.') (accuracy-better) ||
+#        LSTM:P&P using 5 col.s ('li_open',..,'li_vol.') (accuracy-better) |
 #        Added dt (X: dt then day no.) & stName | ->Def-while-try | Call func. in stVis |
 #        Integrated to the proj | Handle all input errors |
 #        Optimizing attempt (+biLstm, Changed struc.& compile(opti.=RMSprop, loss=huber))

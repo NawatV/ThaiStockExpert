@@ -18,7 +18,7 @@ import stockScraper as stScr
 #           ** Multi-numPs & bugs fixed | +MACD,Signal,His | +Opti.del func.('rnd_fileNameWOtype')
 #           | +Exit opt. | Check isUniPath before saving .csv | Optimized the code | +multi-Volatility | +NP
 #           | +input.strip() | +sharp ratio | +call func.in stScr |  
-#           | 1 web scr/act opening || +Warning 'SET's API' | Fixed 'valEr: 1' at stVis 
+#           | 1 web scr/act opening | +Warning 'SET's API' | Fixed 'valEr: 1' at stVis 
 #
 #            Big try-except (compre.) =================
 
@@ -347,7 +347,7 @@ def getStockData():
         try:
             rnd = 1
             # Get candle stick | *** Latest data = 3 working days before | Unavai.'15m'
-            print("//// SET's API doesn't always return up-to-date data & it's occasionally inaccessible ////")
+            print("//// SET's API doesn't always return up-to-date data & it's occasionally inaccessible including around 4:15-5:15am (GMT+7) ////")
             print("     The amount of the data rows it provides has been occasionally changable ////")
             print("//// Please beware of the last dataRow, remove it if incontinuous and/or inaccurate ////")
             print("Stock Name (Case-Insen) OR Exit (exit):", end=" ")
