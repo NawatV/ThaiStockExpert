@@ -24,6 +24,10 @@
 //// The market is influenced by several factors
         So you will get probabilities, not certainties as the results ////
 
+# stockGRU.py
+//// The market is influenced by several factors
+        So you will get probabilities, not certainties as the results ////
+
 # stockScraper.py
 --- PREREQUISITE: - Download a Chrome WebDriver compatible with its version on
 ---                   	      https://developer.chrome.com/docs/chromedriver/downloads (if 'warning' > 'Chrome for Testing avai.dashboard').

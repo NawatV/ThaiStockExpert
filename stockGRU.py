@@ -1,9 +1,9 @@
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
-#------ LSTM model ------
-from tensorflow.keras.models import Sequential, load_model 
-from tensorflow.keras.layers import LSTM, Bidirectional, Dropout, SimpleRNN, Dense, LayerNormalization
+#------ GRU model ------
+from tensorflow.keras.models import Model, load_model
+from tensorflow.keras.layers import GRU, Bidirectional, Dropout, Dense, LayerNormalization, Input
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from tensorflow.keras.callbacks import EarlyStopping, Callback 
 #------ Visualization ------
@@ -13,15 +13,9 @@ import stockRetrieve as stRet
 import stockVisualization as stVis
 
 
-#======= Optimizing attempt (= 100->25 days, _cutLatest.csv) |
-#        LSTM:P&P using 5 col.s ('li_open',..,'li_vol.') (accuracy-better) |
-#        Added dt (X: dt then day no.) & stName | ->Def-while-try | Call func. in stVis |
-#        Integrated to the proj | Handle all input errors |
-#        Optimizing attempt (+biLstm, Changed struc.& compile(opti.=RMSprop, loss=huber))
-#           (accuracy-better) | Opt.att. (+shuffle=False, Xdropout) | Fixed dataRow bug
-#        Big try-except (compre.) || tensorflow.keras.. | + EarlyStop & BestW | +metrics @compile | +ShortLogger
-#        **Restore _train/test (check overfit.) sep. w/ _entire | Fixed bugs: X- len(y_train) |
-#        Overfit.found due to data's nature & handled properly based on emp.testings =======
+#======= *** MODIFIED FROM stockLSTM.py | tensorflow.keras.. | + EarlyStop & BestW | +metrics @compile | +ShortLogger |
+#        + opt.attempt (see 'Model's Structure') | Seq->Func Api (param=...) | **Restore _train/test (check overfit.) sep. w/ _entire
+#       Fixed bugs: X- len(y_train) | Overfit.found due to data's nature & handled properly based on emp.testings  =======
 
 
 ### >Obsidian
@@ -29,7 +23,7 @@ import stockVisualization as stVis
 ### loss function: used in training & testing(validation) NOT future prediction
   # 'loss' depends on .compile(..loss='?') for the model being trained by the training data 
   # 'val_loss' ... by the test(validation) data
-  
+
 #---- Print Epoch's info ----
 class ShortLogger(Callback): 
     def on_epoch_end(self, epoch, logs=None):
@@ -37,14 +31,14 @@ class ShortLogger(Callback):
         print(f"Epoch {epoch+1:02d}: loss={logs.get('loss'):.4f}, val_loss={logs.get('val_loss'):.4f} || ", end="")
         print(f"mae={logs.get('mae'):.4f}, val_mae={logs.get('val_mae'):.4f} || ", end="")        
         print(f"mse={logs.get('mse'):.4f}, val_mse={logs.get('val_mse'):.4f}")
-
+        
 
 #============= 1.DATA Part: =============
 ### Shape 1D= (no. of ele,)           = [ele1,ele2,..,eleN] 
 ### Shape 2D= (no. of row, no. of col)= [[row1],[row2],..,[rowN]] where row1 = col1,col2,..,colN
 ### Shape 3D= (no. of sample(=row), no. of time_step(=window_size), no. feature(=column to use))
 
-def runLSTM():
+def runGRU():
     isAgain = True
     while isAgain == True:
 #        try:
@@ -137,7 +131,7 @@ def runLSTM():
         # Entire= the input data for future prediction, not being splitted
         X_entire = X
         y_entire = y
-       
+
         # Split 'X, y' into training & testing sets //w_s = 15
         ### Necessary for checking whether the model is overfitting 
         split = int(0.8 * len(X))
@@ -148,96 +142,100 @@ def runLSTM():
         #----------------------------------------------------------------
 
 
-        #======== 2.TRAIN a LSTM model (4 LSTM layers + 1 output layer): ========
+        #======== 2.TRAIN a GRU model (*****Seq->Func API (param=...): 4 GRU layers + 1 output layer): ========
         # Compile & summarize it
-        lstm_model = Sequential()
+        #gru_model = Sequential()
 
         #----------- Model's Structure ---------------------------------
         #////// Empirical Optimization from Testings //////
-        #  1.Neurons 50->25 doesn't help (overfitting was suspected)
-        #**2.Neurons 50->100 helps (underfitting was suspected)
-        #**3.+BiLSTM & Changed the stru. help: [so far] LSTM100-LSTM100-LSTM100-BiLSTM100-Dense1
-        #  4.+Batch/Layer-Normalization doesn't sig. help
-        #**5.Changing to compile(optimizer='RMSprop', loss='huber') helps
-        #**6.+shuffle=False helps
-        #  7.Dropout 0.2->0.8 doesn't help
-        #**8.Dropout 0.0 helps
-        #xx9.biL(100)-biL(100)-biL(100)-Lstm(200)-dense(1)
-        #xx10.dense during the journey
-        #X more epochs 30->50
+        # *** SEE stockLSTM.py & 'GRU vs LSTM_loss-mae-mse' fol.
+        # X ReduceLROnPlateau (callback) : X more patience values >fol.
+        # X ChangeStruc. >fol.
+        #   X stateful=True
+	#   X RootMeanSquaredError (metric)
+	# X more epochs 30->50
+	# X less neuron 100->64->32
         #////// Already saved all the results' pics named <testDescription>.png & noted 'know-how' //////  
 
         #--- early_stop & restore_best_weights --- 
         early_stop = EarlyStopping(
             monitor='val_loss', # Cal.from the val.set. Here= training will stop if val_loss doesn't improve for 20 consec.epochs
                                 # Better use this instead of 'loss' >Obsidian
-            patience=20,                 
+            patience=20,                   
             restore_best_weights=True # **Restore the best from the epoch having the best val from the metric (loss='huber' here)
                                       #   If =False/no this part -> get from the last epoch (may be worse due to overfit.) instead
         )
+
+        # Input layer
+        inputs = Input(shape=(X_train.shape[1], X_train.shape[2]))
         
-        # 1st LSTM layer with dropout
-        #lstm_model.add(Bidirectional(LSTM(100, return_sequences=True), input_shape=(window_size, 5)))
-            ### Learning Pattern: <-- and --> (no for real-time price trend prediction)
-        lstm_model.add(LSTM(100, return_sequences=True, input_shape=(X_train.shape[1], X_train.shape[2])))
-                #(50 neurons, LSTM output = seq,
+        # 1st GRU layer (no dropout for all the layers)
+        h = GRU(units=100, return_sequences=True)(inputs)
+        #gru_model.add(GRU(100, return_sequences=True, input_shape=(X_train.shape[1], X_train.shape[2])))
+                #(100 neurons, GRU output = seq,
                 #input_shape= (no.of time steps, of feature(=5 cols to use; 'li_open',..'li_vol.')
-                #X.shape (3D)= (629, 100, 5)
-            ### Learning Pattern: --> time t
-        #lstm_model.add(LayerNormalization())
-        #lstm_model.add(Dropout(0.2))
-            #Helps prevent overfitting by disabling 20%*neurons during training            
+                #X.shape (3D)= (629, 100, 5) *** So, X_train.shape[2] = 5 @/////@
+            ### Learning Pattern: --> time t         
                                         
-        # 2nd LSTM layer with dropout
-        #lstm_model.add(Bidirectional(LSTM(100, return_sequences=True), input_shape=(window_size, 5)))
-        lstm_model.add(LSTM(100, return_sequences=True))
-        #lstm_model.add(LayerNormalization())
-        #lstm_model.add(Dropout(0.2))
+        # 2nd GRU layer
+        h = GRU(units=100, return_sequences=True)(h)
+        #gru_model.add(GRU(100, return_sequences=True))
 
-        # 3rd LSTM layer with dropout
-        #lstm_model.add(Bidirectional(LSTM(100, return_sequences=True), input_shape=(window_size, 5)))
-        lstm_model.add(LSTM(100, return_sequences=True))
-        #lstm_model.add(LayerNormalization())
-        #lstm_model.add(Dropout(0.2))
+        # 3rd GRU layer
+        h = GRU(units=100, return_sequences=True)(h)
+        #gru_model.add(GRU(100, return_sequences=True))
 
-        # 4th LSTM layer with dropout
-        lstm_model.add(Bidirectional(LSTM(100), input_shape=(window_size, 5)))
-        #lstm_model.add(LSTM(100))    #return_sequences=False cuz it's the last recurrent layer
-        #lstm_model.add(LayerNormalization())
-        #lstm_model.add(Dropout(0.2))
+        # 4th GRU layer
+        h = Bidirectional(GRU(units=100))(h) # From @/////@, input_shape=(window_size, 5)
+        #gru_model.add(Bidirectional(GRU(100), input_shape=(window_size, 5)))
+            #return_sequences=False cuz it's the last recurrent layer
+            ### Learning Pattern: <-- and --> (no for real-time price trend prediction)
 
-        # Output layer 
-        lstm_model.add(Dense(1))    #Add a Dense(fully connected)output layer with 1 neuron
-                                    #It connects all outputs from the previous LSTM layer
-        lstm_model.compile(optimizer='RMSprop', loss='huber', metrics=['mae', 'mse'])
+        #------ X: ChangeStruc. -------
+        # Add an intermediate Dense layer with ReLU
+        #gru_model.add(Dense(64, activation='relu'))
+        # Dropout
+        #gru_model.add(Dropout(0.2))
+        # Output layer (linear activation for regression output)
+        #gru_model.add(Dense(1, activation='linear'))
+
+        # Output layer
+        outputs = Dense(units=1, activation='linear')(h) #default: act.=None/'linear'
+        #gru_model.add(Dense(1))     #Add a Dense(fully connected)output layer with 1 neuron
+                                    #It connects all outputs from the previous GRU layer
+
+        # Model
+        gru_model = Model(inputs=inputs, outputs=outputs)
+        
+        gru_model.compile(optimizer='RMSprop', loss='huber', metrics=['mae', 'mse'])
                                     #opt= 'RMSprop': designed for GRU with smoother convergence in time series models
                                     #los= 'huber': less sensi. to outliers. It behaves= MSE for small errors (squared) 
                                     #       &= MAE for larger errors (linear)
                                     #met='mse': loss func. telling the model how wrong it is during training
                                     #**met -X-> optimization, -> get extra insight for anal.& improve
-        #lstm_model.compile(optimizer='adam', loss='mean_squared_error')
+                                    
                                     #opt='adam' (smart gradient-based): popular for time series & NN
 
-        lstm_model.summary()
-        print("*** Optimizer: ", lstm_model.optimizer.__class__.__name__)
-        print("*** Loss Function: ", lstm_model.loss)
+        gru_model.summary()
+        print("*** Optimizer: ", gru_model.optimizer.__class__.__name__)
+        print("*** Loss Function: ", gru_model.loss)
         #--------------------------------------------------------------
 
         # Train it
         print("////////// Training the model, please wait. ////////////////")
         print("/// It will restore the weights from the best epoch having the best value from the metric. ///")
-        #X: save->load_model() | 
+        #X: save->load_model()
         
-        lstm_model.fit(X_train, y_train, validation_data=(X_test, y_test),
-                       epochs=30, batch_size=24, verbose=0, shuffle=False,
-                       callbacks=[early_stop, ShortLogger()])
+        gru_model.fit(X_train, y_train, validation_data=(X_test, y_test),
+                      epochs=30, batch_size=24, verbose=0, shuffle=False,
+                      callbacks=[early_stop, ShortLogger()])
             #y_train: e.g., next closing price after each sequence
             #epochs=30 : The model iterates over the entire dataset 30 times -> learn better but too much=overfitting
-            # ** See 'train's loss f.& metrics VS test(val.)'s ones' -> iden.ovefit. >Obsidian  
+            # ** See 'train's loss f.& metrics VS test(val.)'s ones' -> iden.ovefit. >Obsidian   
             #       an epoch contains <?> batches
             #batch_size=n : The model processes 'n samples (data points) at once' ('..' = a batch)
             #       before the model's weights are updated based on the avg loss across the entire batch
-            #       (accum. gradients from the entire batch for the LSTM case) calculated for those samples
+            #       (accum. gradients from the entire batch for the GRU case) calculated for those samples
             #  So <?> = total samples (data points) / batch_size
             #  n: less= handling 'unseen' better & slower convergence | more= 'opposite'
             #verbose: controls the output display > 1: Progress bar | 0: Show nothing
@@ -248,7 +246,7 @@ def runLSTM():
                 #Epoch 1/30
                 #250/250 [==============================] - 3s 6ms/step - loss: 0.0041
 
-        #======== 3.TEST the LSTM model & Reshape: ========
+        #======== 3.TEST the GRU model & Reshape: ========
         x_last_seq = data_normalized[-window_size:]                         #Shape 3D= (w_s, 5) | [ ..,[e[n-1-100]-e[n-1]] ] }See above
         x_last_seq = x_last_seq.reshape((1, window_size, len(cols_to_use))) #Reshape -> (1, w_s, 5)= (batch_size, len(seq), feature)
                                        
@@ -269,7 +267,7 @@ def runLSTM():
         print("////////// Predicting the price trend, please wait. ////////////////")
         for _ in range(dayPredicted):
             #### Predict 'y_next_pred'  //Shape 2D= (-1,1)
-            y_next_pred = lstm_model.predict(x_current_input, verbose=0)  #** y_next_pred: np.array( [[0.17280594]] )
+            y_next_pred = gru_model.predict(x_current_input, verbose=0)  #** y_next_pred: np.array( [[0.17280594]] )
             # Add to 'y_pred_vals'
             y_pred_vals.append(y_next_pred[0][0])                         #** y_next_pred[0][0]: 0.17280594
 
@@ -313,7 +311,7 @@ def runLSTM():
                           #To inverse-transform only dum [all rows of d_n['li_close']] from dum whose shape is 2D= (728-1-100, 5)
                           # and this shape satisfies 'scaler' (also see above) expecting 2D= (rows(=627), 5)
         y_vals_actual_in = scaler.inverse_transform(dum_y_vals_actual)[:, cols_to_use.index('li_close')]  #@@@
-                           #shape= (len(y_train),)
+                          #shape= (len(y_train),)
 
         ## 'Future part' to be plotted | Fixed 'Add arr.(1,99,5) <- (1,1,1)' error
                             #Select $'the last row' (Shape 1D= (5,) (=[x,y,z,..]) & != 2D= (1,5))
@@ -361,7 +359,7 @@ def runLSTM():
             print("Invalid input! Please try again.")
 
 #        except:
-#            print("Something wrong, please check 'stockLSTM.py'")
+#            print("Something wrong, please check 'stockGRU.py'")
 #            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 #            continue
 
