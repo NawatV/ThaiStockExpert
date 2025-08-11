@@ -335,8 +335,6 @@ def getStockData():
     # Initialize an Investor object with your credentials
     investor = Investor(app_id="", app_secret="",
                         broker_id="SANDBOX", app_code="SANDBOX", is_auto_queue = False)
-        #old & same result: app_id="Z0QNucel4MEuGSq8"
-        #old & same result: app_secret="e9UpfLM0EyaWvAko8qEr7a7todBgPIEown+S22da/VY="
     # Access the market data
     market = investor.MarketData()
 

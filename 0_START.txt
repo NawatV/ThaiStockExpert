@@ -1,0 +1,5 @@
+============== Python IDLE ==============
+1. Run main.py: main.py > Edit with IDLE > Run Module
+2. Please wait, it takes time to be ready.
+3. Choose your actions (no.).
+4. Follow the description in the Python shell.

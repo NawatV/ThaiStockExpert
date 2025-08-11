@@ -9,17 +9,21 @@ from selenium.webdriver.common.action_chains import ActionChains
 # Use pathlib to work with paths (optional)
 from pathlib import Path
 
-# ===== Scrape %_ann_R_f data | Big try-except (compre.) ===========
+# ===== Scrape %_ann_R_f data | Big try-except (compre.) | Small try-except | Web struc.warning ===========
 
 
 def scrape_percent_ann_R_f(type):
     try:
-        # Set up the path to chromedriver   ##### PATH !!!
-        driver_path = Path("C:/Users/LENOVO/Desktop/thai_stock_expert/chromedriver/chromedriver.exe")
-        # Create a webDriver service
-        service = Service(driver_path)
-        # Launch Chrome
-        driver = webdriver.Chrome(service=service)
+        print("//// The structure of the site being scraped is subject to changes by its development team, which may result in scraping failures or other issues ////")
+        try:
+            # Set up the path to chromedriver   ##### PATH !!!
+            driver_path = Path("C:/Users/LENOVO/Desktop/thai_stock_expert/chromedriver/chromedriver.exe")
+            # Create a webDriver service
+            service = Service(driver_path)
+            # Launch Chrome
+            driver = webdriver.Chrome(service=service)
+        except:
+            print("Something wrong with your Chrome WebDriver, please check/update it.")
 
         if type == "3M":
             # Open a website
