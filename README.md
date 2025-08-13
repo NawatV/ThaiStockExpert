@@ -32,7 +32,6 @@
 - Same as # stockScraper.py
 - // Changed to develop in stockRetrieve.py  using Settrade Open API.
 - This file could be used for developing this project and/or others in the future.
-
-
+# Remarks
 - *** If you find a bug or have a question, please contact nawatv@gmail.com
 - Ready to be further developed in the future, espectially the GRU and LSTM models.
